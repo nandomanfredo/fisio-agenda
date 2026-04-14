@@ -1,0 +1,13 @@
+# Arquivos do sistema Windows
+Thumbs.db
+desktop.ini
+
+# Arquivos do sistema Mac
+.DS_Store
+
+# Arquivos temporários
+*.tmp
+*.log
+
+# Variáveis de ambiente (segurança)
+.env
