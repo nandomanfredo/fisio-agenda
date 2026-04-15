@@ -217,6 +217,9 @@
     .badge-cancelado  { background: #fff0f0; color: #cc4444; }
     .badge-receita    { background: #e8fff0; color: #338855; }
     .badge-despesa    { background: #fff0f0; color: #cc4444; }
+    .badge-pago       { background: #d4f5e9; color: #1a7a4a; }
+    .badge-pendente   { background: #fff3e0; color: #c05800; }
+    .btn-pagamento    { background: #d4f5e9; color: #1a7a4a; border: 1.5px solid #a8e6c7; }
 
     /* ══════════════════════════════════════════════
        CARDS DO DASHBOARD
@@ -646,6 +649,43 @@
   </div>
 </div>
 
+<!-- Modal: Registrar Pagamento -->
+<div class="modal-overlay" id="modal-pagamento">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-titulo">💰 Registrar Pagamento</span>
+      <button class="modal-fechar" onclick="fecharModal('modal-pagamento')">✕</button>
+    </div>
+    <input type="hidden" id="pag-id">
+    <div class="campo">
+      <label>Paciente</label>
+      <input type="text" id="pag-paciente" disabled style="background:#f4f8f8;color:#888">
+    </div>
+    <div class="campo-duplo">
+      <div class="campo">
+        <label>Valor (R$) *</label>
+        <input type="number" id="pag-valor" placeholder="0,00" step="0.01" min="0">
+      </div>
+      <div class="campo">
+        <label>Data do pagamento *</label>
+        <input type="date" id="pag-data">
+      </div>
+    </div>
+    <div class="campo">
+      <label>Forma de Pagamento</label>
+      <select id="pag-forma">
+        <option value="">—</option>
+        <option value="dinheiro">Dinheiro</option>
+        <option value="pix">PIX</option>
+        <option value="debito">Débito</option>
+        <option value="credito">Crédito</option>
+        <option value="transferencia">Transferência</option>
+      </select>
+    </div>
+    <button class="btn btn-primario btn-full" onclick="confirmarPagamento()">✓ Confirmar Pagamento</button>
+  </div>
+</div>
+
 <!-- Modal: Lançamento Financeiro -->
 <div class="modal-overlay" id="modal-lancamento">
   <div class="modal">
@@ -864,15 +904,30 @@ function renderizarAgendamentos(lista) {
   var html = lista.map(function(a) {
     var badgeClass = 'badge-' + (a.status || 'agendado');
     var valor = a.valor ? 'R$ ' + parseFloat(a.valor).toFixed(2) : '';
+
+    // Badge e botão de pagamento (só para agendamentos realizados)
+    var badgePagamento = '';
+    var btnPagamento = '';
+    if (a.status === 'realizado') {
+      if (a.pago) {
+        badgePagamento = '<span class="badge badge-pago">✓ pago</span> ';
+      } else {
+        badgePagamento = '<span class="badge badge-pendente">⏳ aguardando pagamento</span> ';
+        btnPagamento = '<button class="btn btn-pagamento btn-sm" onclick="abrirModalPagamento(\'' + a.id + '\')" title="Registrar pagamento">💰</button>';
+      }
+    }
+
     return '<div class="lista-item">' +
       '<div class="lista-item-info">' +
         '<div class="lista-item-nome">' + esc(a.clienteNome) + '</div>' +
         '<div class="lista-item-sub">' + a.horario + ' · ' + (a.tipoAtendimento || 'Fisioterapia') +
           (a.data && modoAgenda === 'semana' ? ' · ' + formatarData(a.data) : '') +
           (valor ? ' · ' + valor : '') + '</div>' +
-        '<div style="margin-top:4px"><span class="badge ' + badgeClass + '">' + (a.status || 'agendado') + '</span></div>' +
+        '<div style="margin-top:4px">' + badgePagamento +
+          '<span class="badge ' + badgeClass + '">' + (a.status || 'agendado') + '</span></div>' +
       '</div>' +
       '<div class="lista-item-acoes">' +
+        btnPagamento +
         '<button class="btn btn-secundario btn-sm" onclick="editarAgendamento(\'' + a.id + '\')">✏️</button>' +
         '<button class="btn btn-perigo btn-sm" onclick="deletarAgendamento(\'' + a.id + '\')">🗑</button>' +
       '</div>' +
@@ -948,6 +1003,39 @@ async function salvarAgendamento() {
     carregarAgendamentos(true);
   } else {
     mostrarToast(resultado.erro || 'Erro ao salvar.', true);
+  }
+}
+
+function abrirModalPagamento(agendamentoId) {
+  var a = estado.agendamentos.find(function(x) { return String(x.id) === String(agendamentoId); });
+  if (!a) return;
+  document.getElementById('pag-id').value      = a.id;
+  document.getElementById('pag-paciente').value = a.clienteNome;
+  document.getElementById('pag-valor').value   = a.valor || '';
+  document.getElementById('pag-data').value    = new Date().toISOString().split('T')[0];
+  document.getElementById('pag-forma').value   = a.formaPagamento || '';
+  abrirModal('modal-pagamento');
+}
+
+async function confirmarPagamento() {
+  var dados = {
+    agendamentoID:  document.getElementById('pag-id').value,
+    valor:          document.getElementById('pag-valor').value,
+    data:           document.getElementById('pag-data').value,
+    formaPagamento: document.getElementById('pag-forma').value
+  };
+  if (!dados.valor) { mostrarToast('Informe o valor.', true); return; }
+  if (!dados.data)  { mostrarToast('Informe a data do pagamento.', true); return; }
+
+  var resultado = await chamarBackend('registrarPagamento', dados);
+  if (resultado.sucesso) {
+    fecharModal('modal-pagamento');
+    mostrarToast(resultado.mensagem);
+    invalidarFrontend('agendamentos_hoje');
+    invalidarFrontend('agendamentos_semana');
+    carregarAgendamentos(true);
+  } else {
+    mostrarToast(resultado.erro || 'Erro ao registrar pagamento.', true);
   }
 }
 
