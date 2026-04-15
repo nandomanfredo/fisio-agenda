@@ -135,21 +135,25 @@ function getTopCategoriasDespesa(mes, ano) {
 
 
 // ─── getAgendamentosHoje: Lista os agendamentos do dia atual ───
-// Retorna array de agendamentos com status agendado ou confirmado
+// CORRIGIDO: usa Utilities.formatDate com fuso de Brasília para evitar
+// que o servidor (que roda em UTC) calcule "hoje" como o dia errado.
 function getAgendamentosHoje() {
-  var hoje = new Date();
-  return getAgendamentosPorData(
-    hoje.getFullYear() + '-' + pad(hoje.getMonth() + 1) + '-' + pad(hoje.getDate())
-  );
+  var hojeStr = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd');
+  return getAgendamentosPorData(hojeStr);
 }
 
 
-// ─── getAgendamentosSemana: Lista os agendamentos da semana atual ───
-// Retorna array de agendamentos dos próximos 7 dias
+// ─── getAgendamentosSemana: Lista os agendamentos dos próximos 7 dias ───
+// CORRIGIDO: compara apenas a DATA (não datetime) para evitar que agendamentos
+// do dia atual sumam dependendo do horário em que a consulta é feita.
 function getAgendamentosSemana() {
-  var hoje = new Date();
-  var fimSemana = new Date(hoje);
-  fimSemana.setDate(hoje.getDate() + 6);
+  // "Hoje" como string no fuso de Brasília
+  var hojeStr = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd');
+
+  // Calcula a data de 6 dias à frente
+  var dataFim = new Date(hojeStr + 'T00:00:00');
+  dataFim.setDate(dataFim.getDate() + 6);
+  var fimStr = Utilities.formatDate(dataFim, 'America/Sao_Paulo', 'yyyy-MM-dd');
 
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   var sheet = ss.getSheetByName('Agendamentos');
@@ -158,15 +162,13 @@ function getAgendamentosSemana() {
 
   for (var i = 1; i < dados.length; i++) {
     var linha = dados[i];
-    // CORRIGIDO: usa dataParaString para converter Date object do Sheets para string
-    var dataStr = dataParaString(linha[3]);
-    var data = new Date(dataStr + 'T00:00:00');
-    if (data >= hoje && data <= fimSemana && linha[9] !== 'cancelado') {
+    var dataAgStr = dataParaString(linha[3]); // converte Date object para string
+    // Compara strings no formato 'YYYY-MM-DD' — funciona corretamente com >= e <=
+    if (dataAgStr >= hojeStr && dataAgStr <= fimStr && linha[9] !== 'cancelado') {
       resultado.push(linhaParaAgendamento(linha));
     }
   }
 
-  // Ordena por data e horário
   resultado.sort(function(a, b) {
     return (a.data + a.horario).localeCompare(b.data + b.horario);
   });
