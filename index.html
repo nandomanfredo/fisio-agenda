@@ -764,10 +764,9 @@ async function chamarBackend(action, dados) {
     var payload = Object.assign({ action: action }, dados || {});
     var resposta = await fetch(WEB_APP_URL, {
       method: 'POST',
-      // 'no-cors' é necessário para Google Apps Script
-      // (a resposta ainda funciona normalmente)
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      redirect: 'follow' // necessário quando o HTML está fora do Apps Script (ex: GitHub Pages)
     });
     var texto = await resposta.text();
     return JSON.parse(texto);
