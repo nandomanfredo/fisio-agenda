@@ -31,7 +31,8 @@ function getLancamentos(filtros) {
     var linha = dados[i];
     if (!linha[0]) continue; // pula linhas vazias
 
-    var dataLanc = new Date(linha[3] + 'T00:00:00');
+    // CORRIGIDO: o Sheets pode retornar Date object — converte para string antes
+    var dataLanc = new Date(dataParaString(linha[3]) + 'T00:00:00');
     var inclui = true;
 
     // Filtra por mês/ano se informados

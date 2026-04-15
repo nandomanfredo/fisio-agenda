@@ -158,7 +158,9 @@ function getAgendamentosSemana() {
 
   for (var i = 1; i < dados.length; i++) {
     var linha = dados[i];
-    var data = new Date(linha[3] + 'T00:00:00'); // evita fuso horário
+    // CORRIGIDO: usa dataParaString para converter Date object do Sheets para string
+    var dataStr = dataParaString(linha[3]);
+    var data = new Date(dataStr + 'T00:00:00');
     if (data >= hoje && data <= fimSemana && linha[9] !== 'cancelado') {
       resultado.push(linhaParaAgendamento(linha));
     }
@@ -183,7 +185,8 @@ function getAgendamentosPorData(dataStr) {
 
   for (var i = 1; i < dados.length; i++) {
     var linha = dados[i];
-    if (linha[3] === dataStr && linha[9] !== 'cancelado') {
+    // CORRIGIDO: converte a data da planilha antes de comparar com a string
+    if (dataParaString(linha[3]) === dataStr && linha[9] !== 'cancelado') {
       resultado.push(linhaParaAgendamento(linha));
     }
   }
@@ -224,7 +227,7 @@ function linhaParaAgendamento(linha) {
     id:              linha[0],
     clienteID:       linha[1],
     clienteNome:     linha[2],
-    data:            linha[3],
+    data:            dataParaString(linha[3]), // CORRIGIDO: sempre retorna string 'YYYY-MM-DD'
     horario:         linha[4],
     duracao:         linha[5],
     tipoAtendimento: linha[6],
@@ -273,4 +276,19 @@ function nomeMes(num) {
 // Adiciona zero à esquerda em números de 1 dígito (ex: 5 → '05')
 function pad(n) {
   return n < 10 ? '0' + n : '' + n;
+}
+
+// ─── dataParaString: Converte qualquer valor de data da planilha para 'YYYY-MM-DD' ───
+// PROBLEMA RAIZ: O Google Sheets armazena datas como objetos Date internamente.
+// Quando lemos com getValues(), o valor pode ser um objeto Date em vez de string.
+// Isso quebrava todas as comparações de data (linha[3] === '2026-04-15' sempre false).
+// Esta função resolve isso de forma segura para qualquer tipo de entrada.
+function dataParaString(valor) {
+  if (!valor) return '';
+  // Se já for um objeto Date do Google Apps Script
+  if (valor instanceof Date) {
+    return Utilities.formatDate(valor, 'America/Sao_Paulo', 'yyyy-MM-dd');
+  }
+  // Se for string, pega apenas os 10 primeiros caracteres (YYYY-MM-DD)
+  return String(valor).substring(0, 10);
 }
