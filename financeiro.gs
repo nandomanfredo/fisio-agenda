@@ -15,7 +15,7 @@
 // Filtros possíveis: mes, ano, tipo ('receita' ou 'despesa'), periodo livre
 function getLancamentos(filtros) {
   filtros = filtros || {};
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Financeiro');
   var dados = sheet.getDataRange().getValues();
   var resultado = [];
@@ -62,7 +62,7 @@ function getLancamentos(filtros) {
 // Os lançamentos automáticos (de atendimentos) são criados por agenda.gs.
 // Esta função é para lançamentos manuais feitos pela fisioterapeuta.
 function saveLancamento(dados) {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Financeiro');
 
   // Validações básicas
@@ -91,7 +91,7 @@ function saveLancamento(dados) {
 
 // ─── deleteLancamento: Remove um lançamento financeiro pelo ID ───
 function deleteLancamento(id) {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Financeiro');
   var dados = sheet.getDataRange().getValues();
 

@@ -25,7 +25,7 @@ function getResumoMes(mes, ano) {
   mes = mes ? parseInt(mes) : agora.getMonth() + 1; // getMonth() retorna 0-11
   ano = ano ? parseInt(ano) : agora.getFullYear();
 
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheetFin = ss.getSheetByName('Financeiro');
   var sheetAge = ss.getSheetByName('Agendamentos');
 
@@ -109,7 +109,7 @@ function getTopCategoriasDespesa(mes, ano) {
   mes = mes ? parseInt(mes) : agora.getMonth() + 1;
   ano = ano ? parseInt(ano) : agora.getFullYear();
 
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Financeiro');
   var dados = sheet.getDataRange().getValues();
 
@@ -155,7 +155,7 @@ function getAgendamentosSemana() {
   dataFim.setDate(dataFim.getDate() + 6);
   var fimStr = Utilities.formatDate(dataFim, 'America/Sao_Paulo', 'yyyy-MM-dd');
 
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Agendamentos');
   var dados = sheet.getDataRange().getValues();
   var resultado = [];
@@ -180,7 +180,7 @@ function getAgendamentosSemana() {
 // ─── getAgendamentosPorData: Lista agendamentos de uma data específica ───
 // Parâmetro: dataStr no formato 'YYYY-MM-DD'
 function getAgendamentosPorData(dataStr) {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Agendamentos');
   var dados = sheet.getDataRange().getValues();
   var resultado = [];
@@ -201,7 +201,7 @@ function getAgendamentosPorData(dataStr) {
 // ─── getClientesPorNome: Busca clientes pelo nome (parcial) ───
 // Útil para a busca no módulo de clientes e para o WhatsApp futuro.
 function getClientesPorNome(nome) {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Clientes');
   var dados = sheet.getDataRange().getValues();
   var resultado = [];

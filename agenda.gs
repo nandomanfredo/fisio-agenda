@@ -34,7 +34,7 @@ function getAgendamentos(filtros) {
 //   2. Se tiver valor → lança receita automática no Financeiro
 //   3. Se status = 'confirmado' → cria evento no Google Calendar
 function saveAgendamento(dados) {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Agendamentos');
 
   if (dados.id) {
@@ -128,7 +128,7 @@ function saveAgendamento(dados) {
 // Quando o status muda para 'cancelado' → remove evento do Calendar
 // Quando o status muda para 'realizado' → lança receita (se ainda não lançou)
 function updateStatusAgendamento(dados) {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Agendamentos');
   var todasLinhas = sheet.getDataRange().getValues();
 
@@ -182,7 +182,7 @@ function updateStatusAgendamento(dados) {
 // ─── deleteAgendamento: Remove um agendamento ───
 // Também remove o evento correspondente no Google Calendar, se houver.
 function deleteAgendamento(id) {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Agendamentos');
   var dados = sheet.getDataRange().getValues();
 
@@ -206,7 +206,7 @@ function deleteAgendamento(id) {
 // Chamado internamente quando um agendamento tem valor definido.
 // Assim a fisioterapeuta não precisa lançar manualmente cada atendimento.
 function lancarReceitaAtendimento(agendamentoID, dados) {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheetFin = ss.getSheetByName('Financeiro');
   var novoID = gerarID() + '_auto'; // sufixo para identificar lançamentos automáticos
   var dataCriacao = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd HH:mm:ss');
@@ -230,7 +230,7 @@ function lancarReceitaAtendimento(agendamentoID, dados) {
 // ─── verificarLancamentoExistente: Verifica se já há lançamento para um agendamento ───
 // Evita duplicação de receitas ao marcar o mesmo atendimento como realizado mais de uma vez.
 function verificarLancamentoExistente(agendamentoID) {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Financeiro');
   var dados = sheet.getDataRange().getValues();
 

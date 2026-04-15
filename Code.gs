@@ -9,10 +9,16 @@
 // ID da planilha Google Sheets onde os dados são salvos.
 // Após criar sua planilha, cole o ID aqui (está na URL da planilha).
 var SPREADSHEET_ID = '1FPfgr1m5xQ003ix7W9qeRPDZupT0p7Fui-reaBJHiNA';
-
-// ID do Google Calendar que será usado para criar/remover eventos.
-// Use 'primary' para o calendário principal da conta.
 var CALENDAR_ID = 'primary';
+
+// ─── Cache da planilha: abre uma vez por requisição e reutiliza ───
+// Sem isso, cada função chamava SpreadsheetApp.openById() separadamente,
+// multiplicando o tempo de resposta. Com isso, abre uma vez só por chamada.
+var _ss = null;
+function getSpreadsheet() {
+  if (!_ss) _ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  return _ss;
+}
 
 // ─── doGet: Responde às requisições GET (acesso via navegador) ───
 // Quando alguém abre a URL do Web App no navegador, esta função é chamada.

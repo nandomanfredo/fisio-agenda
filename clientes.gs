@@ -17,7 +17,7 @@ function getClientes(filtroNome) {
   }
 
   // Sem filtro: retorna todos os clientes
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Clientes');
 
   // getDataRange() pega todos os dados (incluindo cabeçalho)
@@ -43,7 +43,7 @@ function getClientes(filtroNome) {
 // Se o objeto 'dados' tiver um 'id', atualiza o registro existente.
 // Se não tiver 'id', cria um novo registro.
 function saveCliente(dados) {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Clientes');
 
   if (dados.id) {
@@ -88,7 +88,7 @@ function saveCliente(dados) {
 // Cuidado: não verifica se o cliente tem agendamentos futuros.
 // No futuro, pode ser interessante adicionar essa verificação.
 function deleteCliente(id) {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Clientes');
   var dados = sheet.getDataRange().getValues();
 
