@@ -762,17 +762,22 @@ document.addEventListener('DOMContentLoaded', function() {
 async function chamarBackend(action, dados) {
   try {
     var payload = Object.assign({ action: action }, dados || {});
+    console.log('[fisio-agenda] Enviando:', action, payload); // LOG de diagnóstico
     var resposta = await fetch(WEB_APP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(payload),
-      redirect: 'follow' // necessário quando o HTML está fora do Apps Script (ex: GitHub Pages)
+      redirect: 'follow'
     });
     var texto = await resposta.text();
-    return JSON.parse(texto);
+    console.log('[fisio-agenda] Resposta de', action + ':', texto); // LOG de diagnóstico
+    var obj = JSON.parse(texto);
+    // Se o backend retornou erro, mostra no console também
+    if (obj.erro) console.error('[fisio-agenda] Erro do backend:', obj.erro);
+    return obj;
   } catch (err) {
-    console.error('Erro ao chamar backend:', err);
-    mostrarToast('Erro de conexão. Tente novamente.', true);
+    console.error('[fisio-agenda] Erro de rede em ' + action + ':', err.message);
+    mostrarToast('Erro de conexão: ' + err.message, true);
     return { erro: err.message };
   }
 }
