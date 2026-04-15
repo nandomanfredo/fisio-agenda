@@ -88,6 +88,29 @@ function saveAgendamento(dados) {
       dataCriacao
     ]);
 
+    // ── Criação automática de evento no Google Calendar ──
+    // CORRIGIDO: antes, o evento só era criado ao alterar o status para 'confirmado'.
+    // Agora, se o agendamento já for criado como 'confirmado', o evento é criado imediatamente.
+    if (dados.status === 'confirmado') {
+      var agendamentoParaCalendario = {
+        id:              novoID,
+        clienteNome:     dados.clienteNome || '',
+        data:            dados.data || '',
+        horario:         dados.horario || '',
+        duracao:         dados.duracao || 60,
+        tipoAtendimento: dados.tipoAtendimento || '',
+        valor:           dados.valor || 0,
+        formaPagamento:  dados.formaPagamento || '',
+        observacoes:     dados.observacoes || ''
+      };
+      var eventoID = criarEventoCalendar(agendamentoParaCalendario);
+      if (eventoID) {
+        // Atualiza a última linha com o ID do evento criado
+        var ultimaLinha = sheet.getLastRow();
+        sheet.getRange(ultimaLinha, 12).setValue(eventoID);
+      }
+    }
+
     // ── Lançamento automático de receita ──
     // Se o agendamento tiver um valor definido e status 'realizado',
     // lança automaticamente como receita no módulo financeiro.

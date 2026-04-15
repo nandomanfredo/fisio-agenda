@@ -856,15 +856,16 @@ function renderizarAgendamentos(lista) {
   container.innerHTML = html;
 }
 
-function abrirModalAgendamento(id) {
+async function abrirModalAgendamento() {
   limparModal('modal-agendamento', ['age-id','age-data','age-horario','age-obs','age-valor']);
   document.getElementById('modal-agendamento-titulo').textContent = 'Novo Agendamento';
   document.getElementById('age-status').value = 'agendado';
   document.getElementById('age-duracao').value = '60';
   document.getElementById('age-data').value = new Date().toISOString().split('T')[0];
 
-  // Carrega lista de clientes no select
-  preencherSelectClientes('age-cliente');
+  // CORRIGIDO: await garante que a lista de clientes carregue ANTES de abrir o modal
+  // Sem o await, o modal abria com o select vazio e bloqueava o salvamento
+  await preencherSelectClientes('age-cliente');
 
   abrirModal('modal-agendamento');
 }
