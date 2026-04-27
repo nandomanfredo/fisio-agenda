@@ -759,30 +759,16 @@ var CATEGORIAS = {
   ]
 };
 
-// Cache TTL: dados carregados há menos de 2 minutos não são recarregados ao trocar de aba
-var CACHE_TTL = 2 * 60 * 1000;
-
-// Estado global: dados em memória + timestamps de atualização
+// Estado global — todos os dados ficam aqui após o carregamento inicial
 var estado = {
   clientes: [],
   agendamentos: [],
   lancamentos: [],
+  dashboardData: null,
   periodoFin: 'mes-atual',
   graficoBarras: null,
-  graficoPizza: null,
-  ultimaAtualizacao: {}
+  graficoPizza: null
 };
-
-// Retorna true se os dados da chave foram carregados há menos de CACHE_TTL ms
-function dadosFrescos(chave) {
-  var ultima = estado.ultimaAtualizacao[chave];
-  return ultima && (Date.now() - ultima) < CACHE_TTL;
-}
-
-// Marca os dados da chave como desatualizados (força recarga na próxima visita)
-function invalidarFrontend(chave) {
-  delete estado.ultimaAtualizacao[chave];
-}
 
 // ──────────────────────────────────────────────────────
 // INICIALIZAÇÃO
@@ -792,21 +778,29 @@ document.addEventListener('DOMContentLoaded', async function() {
   document.getElementById('data-hoje').textContent = hoje.toLocaleDateString('pt-BR', {
     weekday: 'long', day: 'numeric', month: 'long'
   });
-  document.getElementById('dash-mes').value = hoje.getMonth() + 1;
-  document.getElementById('dash-ano').value = hoje.getFullYear();
+  var mes = hoje.getMonth() + 1;
+  var ano = hoje.getFullYear();
+  document.getElementById('dash-mes').value = mes;
+  document.getElementById('dash-ano').value = ano;
   var dataHoje = hoje.toISOString().split('T')[0];
   document.getElementById('age-data').value = dataHoje;
   document.getElementById('lan-data').value = dataHoje;
 
-  // Carrega agendamentos e clientes EM PARALELO na inicialização
+  // Carrega TUDO em paralelo — uma única rodada de requisições
+  // Depois disso, trocar de aba é instantâneo (sem novas chamadas ao servidor)
+  document.getElementById('lista-agendamentos').innerHTML = '<div class="loading">Carregando...</div>';
   var resultados = await Promise.all([
     chamarBackend('getAgendamentos', {}),
-    chamarBackend('getClientes')
+    chamarBackend('getClientes'),
+    chamarBackend('getLancamentos', { mes: mes, ano: ano }),
+    chamarBackend('getDashboard', { mes: mes, ano: ano })
   ]);
-  estado.agendamentos = Array.isArray(resultados[0]) ? resultados[0] : [];
-  estado.clientes     = Array.isArray(resultados[1]) ? resultados[1] : [];
-  estado.ultimaAtualizacao['agendamentos_hoje'] = Date.now();
-  estado.ultimaAtualizacao['clientes'] = Date.now();
+
+  estado.agendamentos  = Array.isArray(resultados[0]) ? resultados[0] : [];
+  estado.clientes      = Array.isArray(resultados[1]) ? resultados[1] : [];
+  estado.lancamentos   = Array.isArray(resultados[2]) ? resultados[2] : [];
+  estado.dashboardData = (resultados[3] && !resultados[3].erro) ? resultados[3] : null;
+
   renderizarAgendamentos(estado.agendamentos);
 });
 
@@ -850,11 +844,11 @@ function navegarPara(aba) {
   var titulos = { agenda: '📅 Agenda', clientes: '👥 Clientes', financeiro: '💰 Financeiro', dashboard: '📊 Dashboard' };
   document.getElementById('header-titulo').textContent = titulos[aba];
 
-  // Carrega os dados da aba ao abrir (com verificação de cache)
-  if (aba === 'agenda')      carregarAgendamentos();
-  if (aba === 'clientes')    carregarClientes();
-  if (aba === 'financeiro')  carregarLancamentos();
-  if (aba === 'dashboard')   carregarDashboard();
+  // Apenas renderiza os dados já em memória — sem chamadas ao servidor
+  if (aba === 'agenda')      renderizarAgendamentos(estado.agendamentos);
+  if (aba === 'clientes')    renderizarClientes(estado.clientes);
+  if (aba === 'financeiro')  renderizarLancamentos(estado.lancamentos);
+  if (aba === 'dashboard')   renderizarDashboardFromEstado();
 }
 
 // ──────────────────────────────────────────────────────
@@ -879,18 +873,10 @@ function verAgendaSemana() {
 }
 
 async function carregarAgendamentos(forcar) {
-  var chave = 'agendamentos_' + modoAgenda;
-  if (!forcar && dadosFrescos(chave) && estado.agendamentos.length > 0) {
-    renderizarAgendamentos(estado.agendamentos);
-    return;
-  }
-  if (!estado.agendamentos.length) {
-    document.getElementById('lista-agendamentos').innerHTML = '<div class="loading">Carregando...</div>';
-  }
+  if (!forcar) { renderizarAgendamentos(estado.agendamentos); return; }
   var filtro = modoAgenda === 'semana' ? { semana: true } : {};
   var lista = await chamarBackend('getAgendamentos', filtro);
   estado.agendamentos = Array.isArray(lista) ? lista : [];
-  estado.ultimaAtualizacao[chave] = Date.now();
   renderizarAgendamentos(estado.agendamentos);
 }
 
@@ -998,8 +984,6 @@ async function salvarAgendamento() {
   if (resultado.sucesso) {
     fecharModal('modal-agendamento');
     mostrarToast(resultado.mensagem);
-    invalidarFrontend('agendamentos_hoje');
-    invalidarFrontend('agendamentos_semana');
     carregarAgendamentos(true);
   } else {
     mostrarToast(resultado.erro || 'Erro ao salvar.', true);
@@ -1031,8 +1015,6 @@ async function confirmarPagamento() {
   if (resultado.sucesso) {
     fecharModal('modal-pagamento');
     mostrarToast(resultado.mensagem);
-    invalidarFrontend('agendamentos_hoje');
-    invalidarFrontend('agendamentos_semana');
     carregarAgendamentos(true);
   } else {
     mostrarToast(resultado.erro || 'Erro ao registrar pagamento.', true);
@@ -1044,8 +1026,6 @@ async function deletarAgendamento(id) {
   var resultado = await chamarBackend('deleteAgendamento', { id: id });
   if (resultado.sucesso) {
     mostrarToast(resultado.mensagem);
-    invalidarFrontend('agendamentos_hoje');
-    invalidarFrontend('agendamentos_semana');
     carregarAgendamentos(true);
   } else {
     mostrarToast(resultado.erro || 'Erro ao remover.', true);
@@ -1056,16 +1036,10 @@ async function deletarAgendamento(id) {
 // MÓDULO: CLIENTES
 // ──────────────────────────────────────────────────────
 async function carregarClientes(forcar) {
-  if (!forcar && dadosFrescos('clientes') && estado.clientes.length > 0) {
-    renderizarClientes(estado.clientes);
-    return;
-  }
-  if (!estado.clientes.length) {
-    document.getElementById('lista-clientes').innerHTML = '<div class="loading">Carregando...</div>';
-  }
+  if (!forcar) { renderizarClientes(estado.clientes); return; }
+  document.getElementById('lista-clientes').innerHTML = '<div class="loading">Carregando...</div>';
   var lista = await chamarBackend('getClientes');
   estado.clientes = Array.isArray(lista) ? lista : [];
-  estado.ultimaAtualizacao['clientes'] = Date.now();
   renderizarClientes(estado.clientes);
 }
 
@@ -1138,7 +1112,6 @@ async function salvarCliente() {
   if (resultado.sucesso) {
     fecharModal('modal-cliente');
     mostrarToast(resultado.mensagem);
-    invalidarFrontend('clientes');
     carregarClientes(true);
   } else {
     mostrarToast(resultado.erro || 'Erro ao salvar.', true);
@@ -1150,7 +1123,6 @@ async function deletarCliente(id) {
   var resultado = await chamarBackend('deleteCliente', { id: id });
   if (resultado.sucesso) {
     mostrarToast(resultado.mensagem);
-    invalidarFrontend('clientes');
     carregarClientes(true);
   } else {
     mostrarToast(resultado.erro || 'Erro ao remover.', true);
@@ -1288,28 +1260,37 @@ async function deletarLancamento(id) {
 // ──────────────────────────────────────────────────────
 // MÓDULO: DASHBOARD
 // ──────────────────────────────────────────────────────
-async function carregarDashboard(forcar) {
-  var mes = document.getElementById('dash-mes').value;
-  var ano = document.getElementById('dash-ano').value;
-  var chave = 'dashboard_' + mes + '_' + ano;
 
-  if (!forcar && dadosFrescos(chave)) return; // já renderizado recentemente
-
-  // UMA única chamada ao backend (antes eram 3 chamadas sequenciais)
-  var dados = await chamarBackend('getDashboard', { mes: mes, ano: ano });
-  if (!dados || dados.erro) return;
-
+// Renderiza o dashboard usando os dados já em memória (sem chamada ao servidor)
+function renderizarDashboardFromEstado() {
+  var dados = estado.dashboardData;
+  if (!dados) {
+    // Sem dados ainda (raro — só se o carregamento inicial falhou)
+    document.getElementById('dash-receita').textContent     = 'R$ 0,00';
+    document.getElementById('dash-despesa').textContent     = 'R$ 0,00';
+    document.getElementById('dash-saldo').textContent       = 'R$ 0,00';
+    document.getElementById('dash-atendimentos').textContent = '0 atend.';
+    return;
+  }
   var r = dados.resumo;
   if (r) {
-    document.getElementById('dash-receita').textContent     = 'R$ ' + r.receitaTotal.toFixed(2);
-    document.getElementById('dash-despesa').textContent     = 'R$ ' + r.despesaTotal.toFixed(2);
-    document.getElementById('dash-saldo').textContent       = 'R$ ' + r.saldo.toFixed(2);
+    document.getElementById('dash-receita').textContent      = 'R$ ' + parseFloat(r.receitaTotal).toFixed(2);
+    document.getElementById('dash-despesa').textContent      = 'R$ ' + parseFloat(r.despesaTotal).toFixed(2);
+    document.getElementById('dash-saldo').textContent        = 'R$ ' + parseFloat(r.saldo).toFixed(2);
     document.getElementById('dash-atendimentos').textContent = r.totalAtendimentos + ' atend.';
   }
   if (dados.grafico    && dados.grafico.length)    renderizarGraficoBarras(dados.grafico);
   if (dados.categorias && dados.categorias.length) renderizarGraficoPizza(dados.categorias);
+}
 
-  estado.ultimaAtualizacao[chave] = Date.now();
+// Recarrega o dashboard do servidor (chamado ao mudar mês/ano no seletor)
+async function carregarDashboard() {
+  var mes = document.getElementById('dash-mes').value;
+  var ano = document.getElementById('dash-ano').value;
+  var dados = await chamarBackend('getDashboard', { mes: mes, ano: ano });
+  if (!dados || dados.erro) return;
+  estado.dashboardData = dados;
+  renderizarDashboardFromEstado();
 }
 
 function renderizarGraficoBarras(dados) {
