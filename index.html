@@ -800,8 +800,63 @@ document.addEventListener('DOMContentLoaded', async function() {
   estado.clientes      = Array.isArray(resultados[1]) ? resultados[1] : [];
   estado.lancamentos   = Array.isArray(resultados[2]) ? resultados[2] : [];
   estado.dashboardData = (resultados[3] && !resultados[3].erro) ? resultados[3] : null;
+  estado.ultimoCarregamento = Date.now();
 
   renderizarAgendamentos(estado.agendamentos);
+});
+
+// ──────────────────────────────────────────────────────
+// ATUALIZAÇÃO AUTOMÁTICA AO VOLTAR PARA O APP (mobile)
+// ──────────────────────────────────────────────────────
+// No celular, o navegador congela a página quando você troca de app.
+// Ao voltar, os dados ficam com a hora em que você abriu pela primeira vez.
+// Esses dois eventos detectam o retorno e recarregam se passaram mais de 5 minutos.
+
+var TEMPO_RECARREGAR_MS = 5 * 60 * 1000; // 5 minutos
+
+async function recarregarSeNecessario() {
+  if (Date.now() - (estado.ultimoCarregamento || 0) < TEMPO_RECARREGAR_MS) return;
+
+  // Atualiza a data exibida no cabeçalho (pode ter virado o dia)
+  var hoje = new Date();
+  document.getElementById('data-hoje').textContent = hoje.toLocaleDateString('pt-BR', {
+    weekday: 'long', day: 'numeric', month: 'long'
+  });
+  var mes = hoje.getMonth() + 1;
+  var ano = hoje.getFullYear();
+
+  var resultados = await Promise.all([
+    chamarBackend('getAgendamentos', {}),
+    chamarBackend('getClientes'),
+    chamarBackend('getLancamentos', { mes: mes, ano: ano }),
+    chamarBackend('getDashboard', { mes: mes, ano: ano })
+  ]);
+
+  estado.agendamentos  = Array.isArray(resultados[0]) ? resultados[0] : [];
+  estado.clientes      = Array.isArray(resultados[1]) ? resultados[1] : [];
+  estado.lancamentos   = Array.isArray(resultados[2]) ? resultados[2] : [];
+  estado.dashboardData = (resultados[3] && !resultados[3].erro) ? resultados[3] : null;
+  estado.ultimoCarregamento = Date.now();
+
+  // Re-renderiza a aba que está visível no momento
+  var abaAtiva = document.querySelector('.aba.ativa');
+  if (abaAtiva) {
+    var id = abaAtiva.id.replace('aba-', '');
+    if (id === 'agenda')     renderizarAgendamentos(estado.agendamentos);
+    if (id === 'clientes')   renderizarClientes(estado.clientes);
+    if (id === 'financeiro') renderizarLancamentos(estado.lancamentos);
+    if (id === 'dashboard')  renderizarDashboardFromEstado();
+  }
+}
+
+// Dispara quando o usuário volta para a aba/app (Android, desktop)
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') recarregarSeNecessario();
+});
+
+// Dispara quando o iOS restaura a página do cache (bfcache)
+window.addEventListener('pageshow', function(e) {
+  if (e.persisted) recarregarSeNecessario();
 });
 
 // ──────────────────────────────────────────────────────
