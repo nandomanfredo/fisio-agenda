@@ -79,90 +79,72 @@ function getBootstrap(mes, ano, incluirDashboard) {
 }
 
 
-// ─── getDashboard: Retorna TODOS os dados do dashboard em UMA única chamada ───
-// Substitui as 3 chamadas separadas, reduzindo o tempo de carregamento em ~65%
-function getDashboard(mes, ano) {
+// ─── getDashboard: Retorna todos os dados do dashboard em uma única chamada ───
+// Lê Financeiro e Agendamentos UMA vez e reutiliza para resumo, gráfico e categorias.
+// Usa cache por mês (120s) para evitar reprocessamento em acessos repetidos.
+function getDashboard(mes, ano, dadosFinanceiro, dadosAgendamentos) {
   var agora = new Date();
   mes = mes ? parseInt(mes) : agora.getMonth() + 1;
   ano = ano ? parseInt(ano) : agora.getFullYear();
-  var chaveResumo = 'dash_resumo_' + ano + '_' + mes;
-  var chaveCategorias = 'dash_categorias_' + ano + '_' + mes;
-  var chaveGrafico = CACHE_KEY.DASH_GRAFICO_6;
 
-  var dadosFinanceiro = getDadosFinanceiro();
-  var dadosAgendamentos = getDadosAgendamentos();
+  var chaveCompleta = 'dash_' + ano + '_' + mes;
+  var cached = getFromCache(chaveCompleta);
+  if (cached) return cached;
 
-  var resumo = getFromCache(chaveResumo);
-  if (!resumo) {
-    resumo = getResumoMes(mes, ano, dadosFinanceiro, dadosAgendamentos);
-    saveToCache(chaveResumo, resumo, CACHE_TTL.CURTO);
-  }
+  // Lê cada aba uma única vez — reutiliza se já foram passados como parâmetro
+  var fin = dadosFinanceiro  || getDadosFinanceiro();
+  var age = dadosAgendamentos || getDadosAgendamentos();
 
-  var grafico = getFromCache(chaveGrafico);
-  if (!grafico) {
-    grafico = getGraficoMeses(6, dadosFinanceiro, dadosAgendamentos);
-    saveToCache(chaveGrafico, grafico, CACHE_TTL.CURTO);
-  }
-
-  var categorias = getFromCache(chaveCategorias);
-  if (!categorias) {
-    categorias = getTopCategoriasDespesa(mes, ano, dadosFinanceiro);
-    saveToCache(chaveCategorias, categorias, CACHE_TTL.CURTO);
-  }
-
-  return {
-    resumo: resumo,
-    grafico: grafico,
-    categorias: categorias
+  var resultado = {
+    resumo:     getResumoMes(mes, ano, fin, age),
+    grafico:    getGraficoMeses(6, fin, age),
+    categorias: getTopCategoriasDespesa(mes, ano, fin)
   };
+
+  saveToCache(chaveCompleta, resultado, CACHE_TTL.CURTO);
+  return resultado;
 }
 
 
+// ─── prefixoMesAno: Retorna 'YYYY-MM' a partir de mes e ano ───
+// Usado para comparar datas como strings — evita criar objetos Date em loops.
+function prefixoMesAno(mes, ano) {
+  return ano + '-' + (mes < 10 ? '0' + mes : '' + mes);
+}
+
 // ─── getResumoMes: Retorna resumo financeiro de um mês específico ───
-// Parâmetros:
-//   mes  → número do mês (1 a 12). Se omitido, usa o mês atual.
-//   ano  → ano com 4 dígitos. Se omitido, usa o ano atual.
-// Retorna objeto com: receitaTotal, despesaTotal, saldo, totalAtendimentos
 function getResumoMes(mes, ano, dadosFinanceiro, dadosAgendamentos) {
   var agora = new Date();
-  mes = mes ? parseInt(mes) : agora.getMonth() + 1; // getMonth() retorna 0-11
+  mes = mes ? parseInt(mes) : agora.getMonth() + 1;
   ano = ano ? parseInt(ano) : agora.getFullYear();
+  var prefixo = prefixoMesAno(mes, ano); // ex: '2026-05'
 
   var dadosFin = dadosFinanceiro || getDadosFinanceiro();
   var receitaTotal = 0;
   var despesaTotal = 0;
 
-  // Percorre cada linha (pula a linha 1 que é o cabeçalho)
   for (var i = 1; i < dadosFin.length; i++) {
     var linha = dadosFin[i];
-    var dataLancamento = new Date(dataParaString(linha[3]) + 'T00:00:00');
-    var mesDado  = dataLancamento.getMonth() + 1;
-    var anoDado  = dataLancamento.getFullYear();
-
-    // Só soma os lançamentos do mês/ano solicitado
-    if (mesDado === mes && anoDado === ano) {
-      var tipo  = linha[COL.FINANCEIRO.TIPO];
-      var valor = parseFloat(linha[COL.FINANCEIRO.VALOR]) || 0;
-      if (tipo === 'receita') receitaTotal += valor;
-      if (tipo === 'despesa') despesaTotal += valor;
-    }
+    // Comparação por string 'YYYY-MM' — sem criar objetos Date (muito mais rápido)
+    if (dataParaString(linha[COL.FINANCEIRO.DATA]).substring(0, 7) !== prefixo) continue;
+    var tipo  = linha[COL.FINANCEIRO.TIPO];
+    var valor = parseFloat(linha[COL.FINANCEIRO.VALOR]) || 0;
+    if (tipo === 'receita') receitaTotal += valor;
+    if (tipo === 'despesa') despesaTotal += valor;
   }
 
-  // Conta os atendimentos realizados no mês
   var dadosAge = dadosAgendamentos || getDadosAgendamentos();
   var totalAtendimentos = 0;
   for (var j = 1; j < dadosAge.length; j++) {
     var linhaAge = dadosAge[j];
-    var dataAge  = new Date(dataParaString(linhaAge[3]) + 'T00:00:00');
-    var statusAge = linhaAge[COL.AGENDAMENTOS.STATUS];
-    if (dataAge.getMonth() + 1 === mes && dataAge.getFullYear() === ano && statusAge === 'realizado') {
+    if (linhaAge[COL.AGENDAMENTOS.STATUS] !== 'realizado') continue;
+    if (dataParaString(linhaAge[COL.AGENDAMENTOS.DATA]).substring(0, 7) === prefixo) {
       totalAtendimentos++;
     }
   }
 
   return {
-    mes: mes,
-    ano: ano,
+    mes: mes, ano: ano,
     receitaTotal: receitaTotal,
     despesaTotal: despesaTotal,
     saldo: receitaTotal - despesaTotal,
@@ -171,61 +153,84 @@ function getResumoMes(mes, ano, dadosFinanceiro, dadosAgendamentos) {
 }
 
 
-// ─── getGraficoMeses: Retorna receitas e despesas dos últimos N meses ───
-// Parâmetros:
-//   quantidadeMeses → quantos meses incluir no gráfico (padrão: 6)
-// Retorna array de objetos: [{ mes, ano, receita, despesa }, ...]
+// ─── getGraficoMeses: UMA única passagem pelos dados para todos os meses ───
+// Antes: chamava getResumoMes() 6 vezes → 6 iterações completas dos dados
+// Agora: 1 iteração acumula todos os meses de uma vez (6x mais rápido)
 function getGraficoMeses(quantidadeMeses, dadosFinanceiro, dadosAgendamentos) {
   quantidadeMeses = parseInt(quantidadeMeses) || 6;
-  var resultado = [];
   var agora = new Date();
 
-  // Itera pelos últimos N meses
-  for (var i = quantidadeMeses - 1; i >= 0; i--) {
-    var data = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
-    var mes  = data.getMonth() + 1;
-    var ano  = data.getFullYear();
-    var resumo = getResumoMes(mes, ano, dadosFinanceiro, dadosAgendamentos);
-    resultado.push({
-      label: nomeMes(mes) + '/' + ano,
-      mes: mes,
-      ano: ano,
-      receita: resumo.receitaTotal,
-      despesa: resumo.despesaTotal
-    });
+  // Monta lista de meses alvo e mapa de prefixos para lookup O(1)
+  var meses = [];
+  var mapaReceita = {};
+  var mapaDespesa = {};
+  var mapaAtend   = {};
+  for (var m = quantidadeMeses - 1; m >= 0; m--) {
+    var d   = new Date(agora.getFullYear(), agora.getMonth() - m, 1);
+    var mes = d.getMonth() + 1;
+    var ano = d.getFullYear();
+    var pref = prefixoMesAno(mes, ano);
+    meses.push({ mes: mes, ano: ano, pref: pref, label: nomeMes(mes) + '/' + ano });
+    mapaReceita[pref] = 0;
+    mapaDespesa[pref] = 0;
+    mapaAtend[pref]   = 0;
   }
 
-  return resultado;
+  // Uma única passagem pelo Financeiro acumula todos os meses
+  var dadosFin = dadosFinanceiro || getDadosFinanceiro();
+  for (var i = 1; i < dadosFin.length; i++) {
+    var linha = dadosFin[i];
+    var pref = dataParaString(linha[COL.FINANCEIRO.DATA]).substring(0, 7);
+    if (!mapaReceita.hasOwnProperty(pref)) continue;
+    var tipo  = linha[COL.FINANCEIRO.TIPO];
+    var valor = parseFloat(linha[COL.FINANCEIRO.VALOR]) || 0;
+    if (tipo === 'receita') mapaReceita[pref] += valor;
+    if (tipo === 'despesa') mapaDespesa[pref] += valor;
+  }
+
+  // Uma única passagem pelos Agendamentos
+  var dadosAge = dadosAgendamentos || getDadosAgendamentos();
+  for (var j = 1; j < dadosAge.length; j++) {
+    var linhaAge = dadosAge[j];
+    if (linhaAge[COL.AGENDAMENTOS.STATUS] !== 'realizado') continue;
+    var prefAge = dataParaString(linhaAge[COL.AGENDAMENTOS.DATA]).substring(0, 7);
+    if (mapaAtend.hasOwnProperty(prefAge)) mapaAtend[prefAge]++;
+  }
+
+  return meses.map(function(item) {
+    return {
+      label:   item.label,
+      mes:     item.mes,
+      ano:     item.ano,
+      receita: mapaReceita[item.pref],
+      despesa: mapaDespesa[item.pref]
+    };
+  });
 }
 
 
 // ─── getTopCategoriasDespesa: Ranking de categorias de despesa ───
-// Parâmetros: mes, ano (iguais ao getResumoMes)
-// Retorna array ordenado por valor: [{ categoria, total }, ...]
 function getTopCategoriasDespesa(mes, ano, dadosFinanceiro) {
   var agora = new Date();
   mes = mes ? parseInt(mes) : agora.getMonth() + 1;
   ano = ano ? parseInt(ano) : agora.getFullYear();
+  var prefixo = prefixoMesAno(mes, ano);
 
   var dados = dadosFinanceiro || getDadosFinanceiro();
-
-  // Acumula totais por categoria
   var categorias = {};
+
   for (var i = 1; i < dados.length; i++) {
     var linha = dados[i];
-    var dataL = new Date(dataParaString(linha[3]) + 'T00:00:00');
-    if (dataL.getMonth() + 1 === mes && dataL.getFullYear() === ano && linha[COL.FINANCEIRO.TIPO] === 'despesa') {
-      var cat = linha[COL.FINANCEIRO.CATEGORIA] || 'Outros';
-      categorias[cat] = (categorias[cat] || 0) + (parseFloat(linha[COL.FINANCEIRO.VALOR]) || 0);
-    }
+    if (linha[COL.FINANCEIRO.TIPO] !== 'despesa') continue;
+    if (dataParaString(linha[COL.FINANCEIRO.DATA]).substring(0, 7) !== prefixo) continue;
+    var cat = linha[COL.FINANCEIRO.CATEGORIA] || 'Outros';
+    categorias[cat] = (categorias[cat] || 0) + (parseFloat(linha[COL.FINANCEIRO.VALOR]) || 0);
   }
 
-  // Converte para array e ordena do maior para o menor
   var lista = Object.keys(categorias).map(function(cat) {
     return { categoria: cat, total: categorias[cat] };
   });
   lista.sort(function(a, b) { return b.total - a.total; });
-
   return lista;
 }
 
@@ -437,20 +442,21 @@ function pad(n) {
 }
 
 // Converte qualquer valor de data da planilha para 'YYYY-MM-DD'
+// OTIMIZADO: evita Utilities.formatDate() para strings — essa chamada é cara em loops
 function dataParaString(valor) {
   if (!valor) return '';
   if (valor instanceof Date) {
+    // Date object vindo do Sheets: usa formatDate com fuso de Brasília
     return Utilities.formatDate(valor, 'America/Sao_Paulo', 'yyyy-MM-dd');
   }
   var str = String(valor).trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.substring(0, 10);
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
-    var partes = str.split('/');
-    return partes[2] + '-' + partes[1] + '-' + partes[0];
+  // Caso mais comum: já está no formato YYYY-MM-DD → retorno direto sem regex
+  if (str.length >= 10 && str.charAt(4) === '-' && str.charAt(7) === '-') {
+    return str.substring(0, 10);
   }
-  var data = new Date(str);
-  if (!isNaN(data.getTime())) {
-    return Utilities.formatDate(data, 'America/Sao_Paulo', 'yyyy-MM-dd');
+  // Formato DD/MM/YYYY
+  if (str.length === 10 && str.charAt(2) === '/' && str.charAt(5) === '/') {
+    return str.substring(6, 10) + '-' + str.substring(3, 5) + '-' + str.substring(0, 2);
   }
   return '';
 }
