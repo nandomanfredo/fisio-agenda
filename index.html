@@ -767,7 +767,9 @@ var estado = {
   dashboardData: null,
   periodoFin: 'mes-atual',
   graficoBarras: null,
-  graficoPizza: null
+  graficoPizza: null,
+  carregandoAgendamentos: false,
+  dashboardCarregado: false
 };
 
 // ──────────────────────────────────────────────────────
@@ -782,27 +784,11 @@ document.addEventListener('DOMContentLoaded', async function() {
   var ano = hoje.getFullYear();
   document.getElementById('dash-mes').value = mes;
   document.getElementById('dash-ano').value = ano;
-  var dataHoje = hoje.toISOString().split('T')[0];
+  var dataHoje = dataLocalISO(hoje);
   document.getElementById('age-data').value = dataHoje;
   document.getElementById('lan-data').value = dataHoje;
 
-  // Carrega TUDO em paralelo — uma única rodada de requisições
-  // Depois disso, trocar de aba é instantâneo (sem novas chamadas ao servidor)
-  document.getElementById('lista-agendamentos').innerHTML = '<div class="loading">Carregando...</div>';
-  var resultados = await Promise.all([
-    chamarBackend('getAgendamentos', {}),
-    chamarBackend('getClientes'),
-    chamarBackend('getLancamentos', { mes: mes, ano: ano }),
-    chamarBackend('getDashboard', { mes: mes, ano: ano })
-  ]);
-
-  estado.agendamentos  = Array.isArray(resultados[0]) ? resultados[0] : [];
-  estado.clientes      = Array.isArray(resultados[1]) ? resultados[1] : [];
-  estado.lancamentos   = Array.isArray(resultados[2]) ? resultados[2] : [];
-  estado.dashboardData = (resultados[3] && !resultados[3].erro) ? resultados[3] : null;
-  estado.ultimoCarregamento = Date.now();
-
-  renderizarAgendamentos(estado.agendamentos);
+  await carregarDadosIniciais(mes, ano);
 });
 
 // ──────────────────────────────────────────────────────
@@ -825,18 +811,7 @@ async function recarregarSeNecessario() {
   var mes = hoje.getMonth() + 1;
   var ano = hoje.getFullYear();
 
-  var resultados = await Promise.all([
-    chamarBackend('getAgendamentos', {}),
-    chamarBackend('getClientes'),
-    chamarBackend('getLancamentos', { mes: mes, ano: ano }),
-    chamarBackend('getDashboard', { mes: mes, ano: ano })
-  ]);
-
-  estado.agendamentos  = Array.isArray(resultados[0]) ? resultados[0] : [];
-  estado.clientes      = Array.isArray(resultados[1]) ? resultados[1] : [];
-  estado.lancamentos   = Array.isArray(resultados[2]) ? resultados[2] : [];
-  estado.dashboardData = (resultados[3] && !resultados[3].erro) ? resultados[3] : null;
-  estado.ultimoCarregamento = Date.now();
+  await carregarDadosIniciais(mes, ano, true);
 
   // Re-renderiza a aba que está visível no momento
   var abaAtiva = document.querySelector('.aba.ativa');
@@ -873,6 +848,9 @@ async function chamarBackend(action, dados) {
       body: JSON.stringify(payload),
       redirect: 'follow'
     });
+    if (!resposta.ok) {
+      return { erro: 'HTTP ' + resposta.status + ' em ' + action };
+    }
     var obj = JSON.parse(await resposta.text());
     if (obj.erro) console.error('[fisio-agenda]', action, obj.erro);
     return obj;
@@ -881,6 +859,29 @@ async function chamarBackend(action, dados) {
     mostrarToast('Erro de conexão: ' + err.message, true);
     return { erro: err.message };
   }
+}
+
+async function carregarDadosIniciais(mes, ano, silencioso) {
+  if (!silencioso) {
+    document.getElementById('lista-agendamentos').innerHTML = '<div class="loading">Carregando...</div>';
+  }
+
+  var bootstrap = await chamarBackend('getBootstrap', { mes: mes, ano: ano, incluirDashboard: false });
+  if (!bootstrap || bootstrap.erro) {
+    mostrarToast('Falha ao carregar dados iniciais.', true);
+    return;
+  }
+
+  estado.agendamentos = Array.isArray(bootstrap.agendamentos) ? bootstrap.agendamentos : estado.agendamentos;
+  estado.clientes = Array.isArray(bootstrap.clientes) ? bootstrap.clientes : estado.clientes;
+  estado.lancamentos = Array.isArray(bootstrap.lancamentos) ? bootstrap.lancamentos : estado.lancamentos;
+  if (bootstrap.dashboard) {
+    estado.dashboardData = bootstrap.dashboard;
+    estado.dashboardCarregado = true;
+  }
+
+  estado.ultimoCarregamento = Date.now();
+  renderizarAgendamentos(estado.agendamentos);
 }
 
 // ──────────────────────────────────────────────────────
@@ -903,7 +904,25 @@ function navegarPara(aba) {
   if (aba === 'agenda')      renderizarAgendamentos(estado.agendamentos);
   if (aba === 'clientes')    renderizarClientes(estado.clientes);
   if (aba === 'financeiro')  renderizarLancamentos(estado.lancamentos);
-  if (aba === 'dashboard')   renderizarDashboardFromEstado();
+  if (aba === 'dashboard')   garantirDashboardCarregado();
+}
+
+async function garantirDashboardCarregado() {
+  if (!estado.dashboardCarregado) {
+    document.getElementById('dash-receita').textContent = 'Carregando...';
+    document.getElementById('dash-despesa').textContent = 'Carregando...';
+    document.getElementById('dash-saldo').textContent = 'Carregando...';
+    var mes = document.getElementById('dash-mes').value;
+    var ano = document.getElementById('dash-ano').value;
+    var dados = await chamarBackend('getDashboard', { mes: mes, ano: ano });
+    if (!dados || dados.erro) {
+      mostrarToast('Não foi possível carregar o dashboard.', true);
+      return;
+    }
+    estado.dashboardData = dados;
+    estado.dashboardCarregado = true;
+  }
+  renderizarDashboardFromEstado();
 }
 
 // ──────────────────────────────────────────────────────
@@ -916,7 +935,7 @@ function verAgendaHoje() {
   document.querySelectorAll('.agenda-tab').forEach(function(el, i) {
     el.classList.toggle('ativo', i === 0);
   });
-  carregarAgendamentos();
+  carregarAgendamentos(true);
 }
 
 function verAgendaSemana() {
@@ -924,15 +943,25 @@ function verAgendaSemana() {
   document.querySelectorAll('.agenda-tab').forEach(function(el, i) {
     el.classList.toggle('ativo', i === 1);
   });
-  carregarAgendamentos();
+  carregarAgendamentos(true);
 }
 
 async function carregarAgendamentos(forcar) {
+  if (estado.carregandoAgendamentos) return;
   if (!forcar) { renderizarAgendamentos(estado.agendamentos); return; }
-  var filtro = modoAgenda === 'semana' ? { semana: true } : {};
-  var lista = await chamarBackend('getAgendamentos', filtro);
-  estado.agendamentos = Array.isArray(lista) ? lista : [];
-  renderizarAgendamentos(estado.agendamentos);
+  estado.carregandoAgendamentos = true;
+  try {
+    var filtro = modoAgenda === 'semana' ? { semana: true } : {};
+    var lista = await chamarBackend('getAgendamentos', filtro);
+    if (lista && lista.erro) {
+      mostrarToast(lista.erro || 'Falha ao carregar agenda.', true);
+      return;
+    }
+    estado.agendamentos = Array.isArray(lista) ? lista : [];
+    renderizarAgendamentos(estado.agendamentos);
+  } finally {
+    estado.carregandoAgendamentos = false;
+  }
 }
 
 function renderizarAgendamentos(lista) {
@@ -983,7 +1012,7 @@ async function abrirModalAgendamento() {
   document.getElementById('modal-agendamento-titulo').textContent = 'Novo Agendamento';
   document.getElementById('age-status').value = 'agendado';
   document.getElementById('age-duracao').value = '60';
-  document.getElementById('age-data').value = new Date().toISOString().split('T')[0];
+  document.getElementById('age-data').value = dataLocalISO(new Date());
 
   // CORRIGIDO: await garante que a lista de clientes carregue ANTES de abrir o modal
   // Sem o await, o modal abria com o select vazio e bloqueava o salvamento
@@ -1039,7 +1068,7 @@ async function salvarAgendamento() {
   if (resultado.sucesso) {
     fecharModal('modal-agendamento');
     mostrarToast(resultado.mensagem);
-    carregarAgendamentos(true);
+    await carregarAgendamentos(true);
   } else {
     mostrarToast(resultado.erro || 'Erro ao salvar.', true);
   }
@@ -1051,7 +1080,7 @@ function abrirModalPagamento(agendamentoId) {
   document.getElementById('pag-id').value      = a.id;
   document.getElementById('pag-paciente').value = a.clienteNome;
   document.getElementById('pag-valor').value   = a.valor || '';
-  document.getElementById('pag-data').value    = new Date().toISOString().split('T')[0];
+  document.getElementById('pag-data').value    = dataLocalISO(new Date());
   document.getElementById('pag-forma').value   = a.formaPagamento || '';
   abrirModal('modal-pagamento');
 }
@@ -1070,7 +1099,7 @@ async function confirmarPagamento() {
   if (resultado.sucesso) {
     fecharModal('modal-pagamento');
     mostrarToast(resultado.mensagem);
-    carregarAgendamentos(true);
+    await carregarAgendamentos(true);
   } else {
     mostrarToast(resultado.erro || 'Erro ao registrar pagamento.', true);
   }
@@ -1081,7 +1110,7 @@ async function deletarAgendamento(id) {
   var resultado = await chamarBackend('deleteAgendamento', { id: id });
   if (resultado.sucesso) {
     mostrarToast(resultado.mensagem);
-    carregarAgendamentos(true);
+    await carregarAgendamentos(true);
   } else {
     mostrarToast(resultado.erro || 'Erro ao remover.', true);
   }
@@ -1094,6 +1123,10 @@ async function carregarClientes(forcar) {
   if (!forcar) { renderizarClientes(estado.clientes); return; }
   document.getElementById('lista-clientes').innerHTML = '<div class="loading">Carregando...</div>';
   var lista = await chamarBackend('getClientes');
+  if (lista && lista.erro) {
+    mostrarToast(lista.erro || 'Erro ao carregar clientes.', true);
+    return;
+  }
   estado.clientes = Array.isArray(lista) ? lista : [];
   renderizarClientes(estado.clientes);
 }
@@ -1214,7 +1247,11 @@ async function carregarLancamentos() {
   }
 
   var lista = await chamarBackend('getLancamentos', filtro);
-  estado.lancamentos = lista || [];
+  if (lista && lista.erro) {
+    mostrarToast(lista.erro || 'Erro ao carregar lançamentos.', true);
+    return;
+  }
+  estado.lancamentos = Array.isArray(lista) ? lista : [];
   renderizarLancamentos(estado.lancamentos);
 }
 
@@ -1265,7 +1302,7 @@ function renderizarLancamentos(lista) {
 function abrirModalLancamento() {
   limparModal('modal-lancamento', ['lan-valor','lan-desc']);
   document.getElementById('lan-tipo').value = 'despesa';
-  document.getElementById('lan-data').value = new Date().toISOString().split('T')[0];
+  document.getElementById('lan-data').value = dataLocalISO(new Date());
   atualizarCategorias();
   abrirModal('modal-lancamento');
 }
@@ -1345,6 +1382,7 @@ async function carregarDashboard() {
   var dados = await chamarBackend('getDashboard', { mes: mes, ano: ano });
   if (!dados || dados.erro) return;
   estado.dashboardData = dados;
+  estado.dashboardCarregado = true;
   renderizarDashboardFromEstado();
 }
 
@@ -1448,7 +1486,13 @@ function limparModal(modalId, camposIds) {
 // Preenche o select de clientes com os dados em memória ou busca no backend
 async function preencherSelectClientes(selectId) {
   if (!estado.clientes || estado.clientes.length === 0) {
-    estado.clientes = await chamarBackend('getClientes') || [];
+    var clientes = await chamarBackend('getClientes');
+    if (clientes && clientes.erro) {
+      mostrarToast('Não foi possível carregar pacientes.', true);
+      estado.clientes = [];
+    } else {
+      estado.clientes = Array.isArray(clientes) ? clientes : [];
+    }
   }
   var select = document.getElementById(selectId);
   var valorAtual = select.value;
@@ -1464,6 +1508,15 @@ function formatarData(dataStr) {
   if (!dataStr) return '';
   var partes = dataStr.split('-');
   return partes[2] + '/' + partes[1];
+}
+
+// Retorna data local no formato YYYY-MM-DD sem deslocamento UTC
+function dataLocalISO(data) {
+  var d = data instanceof Date ? data : new Date(data);
+  var ano = d.getFullYear();
+  var mes = String(d.getMonth() + 1).padStart(2, '0');
+  var dia = String(d.getDate()).padStart(2, '0');
+  return ano + '-' + mes + '-' + dia;
 }
 
 // Exibe um toast de notificação temporário
