@@ -17,12 +17,15 @@
 function criarEventoCalendar(agendamento) {
   try {
     var calendar = CalendarApp.getCalendarById(CALENDAR_ID);
+    if (!calendar) return null;
 
     // Monta a data e hora de início do evento
     // agendamento.data está em formato 'YYYY-MM-DD'
     // agendamento.horario está em formato 'HH:MM'
-    var parteData   = agendamento.data.split('-');    // ['2025', '06', '15']
-    var parteHora   = agendamento.horario.split(':'); // ['09', '30']
+    if (!agendamento || !agendamento.data || !agendamento.horario) return null;
+    var parteData   = String(agendamento.data).split('-');
+    var parteHora   = String(agendamento.horario).split(':');
+    if (parteData.length < 3 || parteHora.length < 2) return null;
     var duracao     = parseInt(agendamento.duracao) || 60; // duração em minutos
 
     var inicio = new Date(
@@ -68,7 +71,9 @@ function criarEventoCalendar(agendamento) {
 // Chamado quando um agendamento é cancelado.
 function removerEventoCalendar(eventoID) {
   try {
+    if (!eventoID) return false;
     var calendar = CalendarApp.getCalendarById(CALENDAR_ID);
+    if (!calendar) return false;
     var evento = calendar.getEventById(eventoID);
 
     if (evento) {

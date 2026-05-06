@@ -15,9 +15,11 @@
 // Filtros possíveis: mes, ano, tipo ('receita' ou 'despesa'), periodo livre
 function getLancamentos(filtros) {
   filtros = filtros || {};
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Financeiro');
-  var dados = sheet.getDataRange().getValues();
+  var dados = getDadosFinanceiro();
+  return getLancamentosComDados(filtros, dados);
+}
+
+function getLancamentosComDados(filtros, dadosFinanceiro) {
   var resultado = [];
 
   // Define o período de filtragem
@@ -28,8 +30,8 @@ function getLancamentos(filtros) {
   var dataFim    = filtros.dataFim    ? new Date(filtros.dataFim + 'T23:59:59')    : null;
   var limite = filtros.limite ? parseInt(filtros.limite, 10) : 0;
 
-  for (var i = 1; i < dados.length; i++) {
-    var linha = dados[i];
+  for (var i = 1; i < dadosFinanceiro.length; i++) {
+    var linha = dadosFinanceiro[i];
     if (!linha[0]) continue; // pula linhas vazias
 
     // CORRIGIDO: o Sheets pode retornar Date object — converte para string antes
@@ -45,7 +47,7 @@ function getLancamentos(filtros) {
     if (dataFim    && dataLanc > dataFim)   inclui = false;
 
     // Filtra por tipo (receita/despesa) se informado
-    if (filtros.tipo && linha[1] !== filtros.tipo) inclui = false;
+    if (filtros.tipo && linha[COL.FINANCEIRO.TIPO] !== filtros.tipo) inclui = false;
 
     if (inclui) {
       resultado.push(linhaParaLancamento(linha));
@@ -68,8 +70,7 @@ function getLancamentos(filtros) {
 // Os lançamentos automáticos (de atendimentos) são criados por agenda.gs.
 // Esta função é para lançamentos manuais feitos pela fisioterapeuta.
 function saveLancamento(dados) {
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Financeiro');
+  var sheet = getSheetOrThrow(SHEET.FINANCEIRO);
 
   // Validações básicas
   if (!dados.tipo)   return { erro: 'Informe o tipo (receita ou despesa).' };
@@ -111,8 +112,7 @@ function saveLancamento(dados) {
 
 // ─── deleteLancamento: Remove um lançamento financeiro pelo ID ───
 function deleteLancamento(id) {
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Financeiro');
+  var sheet = getSheetOrThrow(SHEET.FINANCEIRO);
   var dados = sheet.getDataRange().getValues();
 
   for (var i = dados.length - 1; i >= 1; i--) {

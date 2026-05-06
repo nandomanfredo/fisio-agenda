@@ -36,8 +36,7 @@ function getAgendamentos(filtros) {
 //   2. Se tiver valor → lança receita automática no Financeiro
 //   3. Se status = 'confirmado' → cria evento no Google Calendar
 function saveAgendamento(dados) {
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Agendamentos');
+  var sheet = getSheetOrThrow(SHEET.AGENDAMENTOS);
   var dataNormalizada = normalizarDataISO(dados.data);
   var horarioNormalizado = horarioParaString(dados.horario);
 
@@ -131,8 +130,7 @@ function saveAgendamento(dados) {
 // Quando o status muda para 'cancelado' → remove evento do Calendar
 // Quando o status muda para 'realizado' → lança receita (se ainda não lançou)
 function updateStatusAgendamento(dados) {
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Agendamentos');
+  var sheet = getSheetOrThrow(SHEET.AGENDAMENTOS);
   var todasLinhas = sheet.getDataRange().getValues();
 
   for (var i = 1; i < todasLinhas.length; i++) {
@@ -174,8 +172,7 @@ function updateStatusAgendamento(dados) {
 // ─── deleteAgendamento: Remove um agendamento ───
 // Também remove o evento correspondente no Google Calendar, se houver.
 function deleteAgendamento(id) {
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Agendamentos');
+  var sheet = getSheetOrThrow(SHEET.AGENDAMENTOS);
   var dados = sheet.getDataRange().getValues();
 
   for (var i = dados.length - 1; i >= 1; i--) {
@@ -207,26 +204,26 @@ function registrarPagamento(dados) {
   var dataPagamento = normalizarDataISO(dados.data);
   if (!dataPagamento) return { erro: 'Data de pagamento inválida.' };
 
-  // Evita duplicação: verifica se já existe receita para este agendamento
-  if (verificarLancamentoExistente(dados.agendamentoID)) {
+  var linhasAgendamento = getDadosAgendamentos();
+  var linhasFinanceiro = getDadosFinanceiro();
+
+  // Evita duplicação: usa os dados já lidos nesta mesma requisição
+  if (verificarLancamentoExistente(dados.agendamentoID, linhasFinanceiro)) {
     return { erro: 'Pagamento já registrado para este agendamento.' };
   }
 
   // Busca dados do agendamento para montar a descrição
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Agendamentos');
-  var linhas = sheet.getDataRange().getValues();
   var agendamento = null;
-  for (var i = 1; i < linhas.length; i++) {
-    if (String(linhas[i][0]) === String(dados.agendamentoID)) {
-      agendamento = linhaParaAgendamento(linhas[i]);
+  for (var i = 1; i < linhasAgendamento.length; i++) {
+    if (String(linhasAgendamento[i][COL.AGENDAMENTOS.ID]) === String(dados.agendamentoID)) {
+      agendamento = linhaParaAgendamento(linhasAgendamento[i]);
       break;
     }
   }
   if (!agendamento) return { erro: 'Agendamento não encontrado.' };
 
   // Cria a receita vinculada ao agendamento
-  var sheetFin = ss.getSheetByName('Financeiro');
+  var sheetFin = getSheetOrThrow(SHEET.FINANCEIRO);
   var novoID = gerarID() + '_pag';
   var dataCriacao = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd HH:mm:ss');
   var descricao = 'Atendimento - ' + agendamento.clienteNome +
@@ -249,40 +246,13 @@ function registrarPagamento(dados) {
 }
 
 
-// ─── lancarReceitaAtendimento: Cria receita automática no Financeiro ───
-// Chamado internamente quando um agendamento tem valor definido.
-// Assim a fisioterapeuta não precisa lançar manualmente cada atendimento.
-function lancarReceitaAtendimento(agendamentoID, dados) {
-  var ss = getSpreadsheet();
-  var sheetFin = ss.getSheetByName('Financeiro');
-  var novoID = gerarID() + '_auto'; // sufixo para identificar lançamentos automáticos
-  var dataCriacao = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd HH:mm:ss');
-
-  sheetFin.appendRow([
-    novoID,
-    'receita',
-    dados.valor || 0,
-    dados.data || '',
-    'Atendimento - ' + (dados.clienteNome || '') + ' - ' + (dados.tipoAtendimento || ''),
-    dados.formaPagamento || '',
-    'Atendimento', // categoria padrão para receitas de atendimento
-    agendamentoID, // referência ao agendamento de origem
-    dataCriacao
-  ]);
-
-  Logger.log('Receita lançada automaticamente para agendamento: ' + agendamentoID);
-}
-
-
 // ─── verificarLancamentoExistente: Verifica se já há lançamento para um agendamento ───
 // Evita duplicação de receitas ao marcar o mesmo atendimento como realizado mais de uma vez.
-function verificarLancamentoExistente(agendamentoID) {
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Financeiro');
-  var dados = sheet.getDataRange().getValues();
+function verificarLancamentoExistente(agendamentoID, dadosFinanceiro) {
+  var dados = dadosFinanceiro || getDadosFinanceiro();
 
   for (var i = 1; i < dados.length; i++) {
-    if (dados[i][7] == agendamentoID) { // coluna AgendamentoID
+    if (dados[i][COL.FINANCEIRO.AGENDAMENTO_ID] == agendamentoID) {
       return true;
     }
   }

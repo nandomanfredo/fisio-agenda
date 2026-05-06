@@ -11,6 +11,36 @@
 var SPREADSHEET_ID = '1FPfgr1m5xQ003ix7W9qeRPDZupT0p7Fui-reaBJHiNA';
 var CALENDAR_ID = 'primary';
 
+var SHEET = {
+  CLIENTES: 'Clientes',
+  AGENDAMENTOS: 'Agendamentos',
+  FINANCEIRO: 'Financeiro'
+};
+
+var CACHE_TTL = {
+  CURTO: 120,
+  MEDIO: 300
+};
+
+var CACHE_KEY = {
+  CLIENTES: 'clientes',
+  AGENDAMENTOS_HOJE: 'agendamentos_hoje',
+  AGENDAMENTOS_SEMANA: 'agendamentos_semana',
+  PAGAMENTOS_REALIZADOS: 'pagamentos_realizados',
+  DASH_GRAFICO_6: 'dash_grafico_6'
+};
+
+var COL = {
+  CLIENTES: { ID: 0, NOME: 1, DATA_CADASTRO: 6 },
+  AGENDAMENTOS: {
+    ID: 0, CLIENTE_ID: 1, CLIENTE_NOME: 2, DATA: 3, HORARIO: 4, DURACAO: 5,
+    TIPO: 6, VALOR: 7, FORMA_PAGAMENTO: 8, STATUS: 9, OBS: 10, EVENTO_ID: 11, DATA_CRIACAO: 12
+  },
+  FINANCEIRO: {
+    ID: 0, TIPO: 1, VALOR: 2, DATA: 3, DESCRICAO: 4, FORMA_PAGAMENTO: 5, CATEGORIA: 6, AGENDAMENTO_ID: 7
+  }
+};
+
 // ─── Cache da planilha: abre uma vez por requisição e reutiliza ───
 // Sem isso, cada função chamava SpreadsheetApp.openById() separadamente,
 // multiplicando o tempo de resposta. Com isso, abre uma vez só por chamada.
@@ -18,6 +48,12 @@ var _ss = null;
 function getSpreadsheet() {
   if (!_ss) _ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   return _ss;
+}
+
+function getSheetOrThrow(nomeAba) {
+  var sheet = getSpreadsheet().getSheetByName(nomeAba);
+  if (!sheet) throw new Error('Aba não encontrada: ' + nomeAba);
+  return sheet;
 }
 
 // ─── doGet: Responde às requisições GET (acesso via navegador) ───
@@ -66,6 +102,9 @@ function handleRequest(e) {
       action = dados.action;
     }
 
+    var authErro = validarAutorizacaoOpcional(dados);
+    if (authErro) return responder({ erro: authErro });
+
     // ── Roteamento: cada action chama uma função específica ──
 
     // Módulo: Inicialização
@@ -107,6 +146,19 @@ function handleRequest(e) {
     // Se der qualquer erro, retorna a mensagem de erro em JSON
     Logger.log('Erro em handleRequest: ' + err.message);
     return responder({ erro: err.message });
+  }
+}
+
+function validarAutorizacaoOpcional(dados) {
+  try {
+    var chaveEsperada = PropertiesService.getScriptProperties().getProperty('API_KEY');
+    if (!chaveEsperada) return '';
+    if (!dados || String(dados.apiKey || '') !== String(chaveEsperada)) {
+      return 'Não autorizado.';
+    }
+    return '';
+  } catch (e) {
+    return '';
   }
 }
 
@@ -163,5 +215,5 @@ function inicializarPlanilha() {
 // ─── gerarID: Gera um ID único baseado no timestamp ───
 // Usado para criar IDs únicos para clientes, agendamentos e lançamentos.
 function gerarID() {
-  return new Date().getTime().toString();
+  return new Date().getTime().toString() + '_' + Utilities.getUuid().substring(0, 8);
 }

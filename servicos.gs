@@ -16,7 +16,7 @@ function getFromCache(chave) {
 
 function saveToCache(chave, dados, ttl) {
   try {
-    CacheService.getScriptCache().put(chave, JSON.stringify(dados), ttl || 90);
+    CacheService.getScriptCache().put(chave, JSON.stringify(dados), ttl || CACHE_TTL.CURTO);
   } catch(e) {
     Logger.log('Cache não salvo para chave ' + chave + ': ' + e.message);
   }
@@ -26,12 +26,11 @@ function saveToCache(chave, dados, ttl) {
 function invalidarCache() {
   try {
     var chaves = [
-      'clientes',
-      'agendamentos_hoje',
-      'agendamentos_semana',
-      'pagamentos_realizados',
-      'dash_grafico_6',
-      'bootstrap_atual'
+      CACHE_KEY.CLIENTES,
+      CACHE_KEY.AGENDAMENTOS_HOJE,
+      CACHE_KEY.AGENDAMENTOS_SEMANA,
+      CACHE_KEY.PAGAMENTOS_REALIZADOS,
+      CACHE_KEY.DASH_GRAFICO_6
     ];
 
     var agora = new Date();
@@ -59,18 +58,23 @@ function getBootstrap(mes, ano, incluirDashboard) {
   var cached = getFromCache(chaveBootstrap);
   if (cached) return cached;
 
+  var dadosAgendamentos = getDadosAgendamentos();
+  var dadosFinanceiro = getDadosFinanceiro();
+  var dadosClientes = getDadosClientes();
+  var hojeStr = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd');
+  var mapaPagamentos = getPagamentosRealizadosComDados(dadosFinanceiro);
+
   var resposta = {
-    agendamentos: getAgendamentosHoje(),
-    clientes: getClientes(),
-    // Limita os lançamentos no bootstrap para reduzir payload inicial
-    lancamentos: getLancamentos({ mes: mes, ano: ano, limite: 80 })
+    agendamentos: getAgendamentosPorDataComDados(hojeStr, dadosAgendamentos, mapaPagamentos),
+    clientes: getClientesComDados(dadosClientes),
+    lancamentos: getLancamentosComDados({ mes: mes, ano: ano, limite: 80 }, dadosFinanceiro)
   };
 
   if (incluirDashboard) {
     resposta.dashboard = getDashboard(mes, ano);
   }
 
-  saveToCache(chaveBootstrap, resposta, 120);
+  saveToCache(chaveBootstrap, resposta, CACHE_TTL.CURTO);
   return resposta;
 }
 
@@ -83,7 +87,7 @@ function getDashboard(mes, ano) {
   ano = ano ? parseInt(ano) : agora.getFullYear();
   var chaveResumo = 'dash_resumo_' + ano + '_' + mes;
   var chaveCategorias = 'dash_categorias_' + ano + '_' + mes;
-  var chaveGrafico = 'dash_grafico_6';
+  var chaveGrafico = CACHE_KEY.DASH_GRAFICO_6;
 
   var dadosFinanceiro = getDadosFinanceiro();
   var dadosAgendamentos = getDadosAgendamentos();
@@ -91,19 +95,19 @@ function getDashboard(mes, ano) {
   var resumo = getFromCache(chaveResumo);
   if (!resumo) {
     resumo = getResumoMes(mes, ano, dadosFinanceiro, dadosAgendamentos);
-    saveToCache(chaveResumo, resumo, 90);
+    saveToCache(chaveResumo, resumo, CACHE_TTL.CURTO);
   }
 
   var grafico = getFromCache(chaveGrafico);
   if (!grafico) {
     grafico = getGraficoMeses(6, dadosFinanceiro, dadosAgendamentos);
-    saveToCache(chaveGrafico, grafico, 90);
+    saveToCache(chaveGrafico, grafico, CACHE_TTL.CURTO);
   }
 
   var categorias = getFromCache(chaveCategorias);
   if (!categorias) {
     categorias = getTopCategoriasDespesa(mes, ano, dadosFinanceiro);
-    saveToCache(chaveCategorias, categorias, 90);
+    saveToCache(chaveCategorias, categorias, CACHE_TTL.CURTO);
   }
 
   return {
@@ -137,8 +141,8 @@ function getResumoMes(mes, ano, dadosFinanceiro, dadosAgendamentos) {
 
     // Só soma os lançamentos do mês/ano solicitado
     if (mesDado === mes && anoDado === ano) {
-      var tipo  = linha[1]; // coluna Tipo
-      var valor = parseFloat(linha[2]) || 0; // coluna Valor
+      var tipo  = linha[COL.FINANCEIRO.TIPO];
+      var valor = parseFloat(linha[COL.FINANCEIRO.VALOR]) || 0;
       if (tipo === 'receita') receitaTotal += valor;
       if (tipo === 'despesa') despesaTotal += valor;
     }
@@ -150,7 +154,7 @@ function getResumoMes(mes, ano, dadosFinanceiro, dadosAgendamentos) {
   for (var j = 1; j < dadosAge.length; j++) {
     var linhaAge = dadosAge[j];
     var dataAge  = new Date(dataParaString(linhaAge[3]) + 'T00:00:00');
-    var statusAge = linhaAge[9]; // coluna Status
+    var statusAge = linhaAge[COL.AGENDAMENTOS.STATUS];
     if (dataAge.getMonth() + 1 === mes && dataAge.getFullYear() === ano && statusAge === 'realizado') {
       totalAtendimentos++;
     }
@@ -210,9 +214,9 @@ function getTopCategoriasDespesa(mes, ano, dadosFinanceiro) {
   for (var i = 1; i < dados.length; i++) {
     var linha = dados[i];
     var dataL = new Date(dataParaString(linha[3]) + 'T00:00:00');
-    if (dataL.getMonth() + 1 === mes && dataL.getFullYear() === ano && linha[1] === 'despesa') {
-      var cat = linha[6] || 'Outros'; // coluna Categoria
-      categorias[cat] = (categorias[cat] || 0) + (parseFloat(linha[2]) || 0);
+    if (dataL.getMonth() + 1 === mes && dataL.getFullYear() === ano && linha[COL.FINANCEIRO.TIPO] === 'despesa') {
+      var cat = linha[COL.FINANCEIRO.CATEGORIA] || 'Outros';
+      categorias[cat] = (categorias[cat] || 0) + (parseFloat(linha[COL.FINANCEIRO.VALOR]) || 0);
     }
   }
 
@@ -228,15 +232,20 @@ function getTopCategoriasDespesa(mes, ano, dadosFinanceiro) {
 
 // ─── getPagamentosRealizados: Lê o Financeiro e retorna Set de agendamentoIDs pagos ───
 function getPagamentosRealizados() {
-  var cached = getFromCache('pagamentos_realizados');
+  var cached = getFromCache(CACHE_KEY.PAGAMENTOS_REALIZADOS);
   if (cached) return cached;
   var dados = getDadosFinanceiro();
+  var pagos = getPagamentosRealizadosComDados(dados);
+  saveToCache(CACHE_KEY.PAGAMENTOS_REALIZADOS, pagos, CACHE_TTL.CURTO);
+  return pagos;
+}
+
+function getPagamentosRealizadosComDados(dadosFinanceiro) {
   var pagos = {};
-  for (var i = 1; i < dados.length; i++) {
-    var agId = dados[i][7]; // coluna AgendamentoID
+  for (var i = 1; i < dadosFinanceiro.length; i++) {
+    var agId = dadosFinanceiro[i][COL.FINANCEIRO.AGENDAMENTO_ID];
     if (agId) pagos[String(agId)] = true;
   }
-  saveToCache('pagamentos_realizados', pagos, 90);
   return pagos;
 }
 
@@ -253,18 +262,18 @@ function enriquecerComPagamentos(agendamentos) {
 
 // ─── getAgendamentosHoje ───
 function getAgendamentosHoje() {
-  var cached = getFromCache('agendamentos_hoje');
+  var cached = getFromCache(CACHE_KEY.AGENDAMENTOS_HOJE);
   if (cached) return cached;
   var hojeStr = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd');
   var resultado = enriquecerComPagamentos(getAgendamentosPorData(hojeStr));
-  saveToCache('agendamentos_hoje', resultado, 90);
+  saveToCache(CACHE_KEY.AGENDAMENTOS_HOJE, resultado, CACHE_TTL.CURTO);
   return resultado;
 }
 
 
 // ─── getAgendamentosSemana ───
 function getAgendamentosSemana() {
-  var cached = getFromCache('agendamentos_semana');
+  var cached = getFromCache(CACHE_KEY.AGENDAMENTOS_SEMANA);
   if (cached) return cached;
 
   var hojeStr = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd');
@@ -272,15 +281,13 @@ function getAgendamentosSemana() {
   dataFim.setDate(dataFim.getDate() + 6);
   var fimStr = Utilities.formatDate(dataFim, 'America/Sao_Paulo', 'yyyy-MM-dd');
 
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Agendamentos');
-  var dados = sheet.getDataRange().getValues();
+  var dados = getDadosAgendamentos();
   var resultado = [];
 
   for (var i = 1; i < dados.length; i++) {
     var linha = dados[i];
     var dataAgStr = dataParaString(linha[3]);
-    if (dataAgStr >= hojeStr && dataAgStr <= fimStr && linha[9] !== 'cancelado') {
+    if (dataAgStr >= hojeStr && dataAgStr <= fimStr && linha[COL.AGENDAMENTOS.STATUS] !== 'cancelado') {
       resultado.push(linhaParaAgendamento(linha));
     }
   }
@@ -290,7 +297,7 @@ function getAgendamentosSemana() {
   });
 
   resultado = enriquecerComPagamentos(resultado);
-  saveToCache('agendamentos_semana', resultado, 90);
+  saveToCache(CACHE_KEY.AGENDAMENTOS_SEMANA, resultado, CACHE_TTL.CURTO);
   return resultado;
 }
 
@@ -298,46 +305,68 @@ function getAgendamentosSemana() {
 // ─── getAgendamentosPorData: Lista agendamentos de uma data específica ───
 // Parâmetro: dataStr no formato 'YYYY-MM-DD'
 function getAgendamentosPorData(dataStr) {
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Agendamentos');
-  var dados = sheet.getDataRange().getValues();
-  var resultado = [];
+  var dados = getDadosAgendamentos();
+  return getAgendamentosPorDataComDados(dataStr, dados);
+}
 
-  for (var i = 1; i < dados.length; i++) {
-    var linha = dados[i];
-    if (dataParaString(linha[3]) === dataStr && linha[9] !== 'cancelado') {
+function getAgendamentosPorDataComDados(dataStr, dadosAgendamentos, mapaPagamentos) {
+  var resultado = [];
+  for (var i = 1; i < dadosAgendamentos.length; i++) {
+    var linha = dadosAgendamentos[i];
+    if (dataParaString(linha[COL.AGENDAMENTOS.DATA]) === dataStr && linha[COL.AGENDAMENTOS.STATUS] !== 'cancelado') {
       resultado.push(linhaParaAgendamento(linha));
     }
   }
-
   resultado.sort(function(a, b) { return a.horario.localeCompare(b.horario); });
+  if (mapaPagamentos) {
+    resultado = enriquecerComPagamentosComMapa(resultado, mapaPagamentos);
+  }
   return resultado;
 }
 
+function enriquecerComPagamentosComMapa(agendamentos, mapaPagamentos) {
+  if (!agendamentos || !agendamentos.length) return agendamentos;
+  return agendamentos.map(function(a) {
+    a.pago = !!mapaPagamentos[String(a.id)];
+    return a;
+  });
+}
+
 function getDadosFinanceiro() {
-  var ss = getSpreadsheet();
-  return ss.getSheetByName('Financeiro').getDataRange().getValues();
+  return getSheetOrThrow(SHEET.FINANCEIRO).getDataRange().getValues();
 }
 
 function getDadosAgendamentos() {
-  var ss = getSpreadsheet();
-  return ss.getSheetByName('Agendamentos').getDataRange().getValues();
+  return getSheetOrThrow(SHEET.AGENDAMENTOS).getDataRange().getValues();
+}
+
+function getDadosClientes() {
+  return getSheetOrThrow(SHEET.CLIENTES).getDataRange().getValues();
+}
+
+function getClientesComDados(dadosClientes) {
+  var clientes = [];
+  for (var i = 1; i < dadosClientes.length; i++) {
+    var linha = dadosClientes[i];
+    if (!linha[COL.CLIENTES.ID]) continue;
+    clientes.push(linhaParaCliente(linha));
+  }
+  clientes.sort(function(a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+  return clientes;
 }
 
 
 // ─── getClientesPorNome: Busca clientes pelo nome (parcial) ───
 // Útil para a busca no módulo de clientes e para o WhatsApp futuro.
 function getClientesPorNome(nome) {
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Clientes');
-  var dados = sheet.getDataRange().getValues();
+  var dados = getDadosClientes();
   var resultado = [];
   var nomeBusca = (nome || '').toLowerCase();
 
   for (var i = 1; i < dados.length; i++) {
     var linha = dados[i];
-    if (linha[0] === '') continue; // pula linhas vazias
-    if (linha[1].toLowerCase().indexOf(nomeBusca) !== -1) {
+    if (linha[COL.CLIENTES.ID] === '') continue;
+    if (String(linha[COL.CLIENTES.NOME] || '').toLowerCase().indexOf(nomeBusca) !== -1) {
       resultado.push(linhaParaCliente(linha));
     }
   }
@@ -353,45 +382,45 @@ function getClientesPorNome(nome) {
 // Converte uma linha da aba Agendamentos em objeto JavaScript
 function linhaParaAgendamento(linha) {
   return {
-    id:              linha[0],
-    clienteID:       linha[1],
-    clienteNome:     linha[2],
-    data:            dataParaString(linha[3]),
-    horario:         horarioParaString(linha[4]),
-    duracao:         linha[5],
-    tipoAtendimento: linha[6],
-    valor:           linha[7],
-    formaPagamento:  linha[8],
-    status:          linha[9],
-    observacoes:     linha[10],
-    eventoCalendarID: linha[11]
+    id:              linha[COL.AGENDAMENTOS.ID],
+    clienteID:       linha[COL.AGENDAMENTOS.CLIENTE_ID],
+    clienteNome:     linha[COL.AGENDAMENTOS.CLIENTE_NOME],
+    data:            dataParaString(linha[COL.AGENDAMENTOS.DATA]),
+    horario:         horarioParaString(linha[COL.AGENDAMENTOS.HORARIO]),
+    duracao:         linha[COL.AGENDAMENTOS.DURACAO],
+    tipoAtendimento: linha[COL.AGENDAMENTOS.TIPO],
+    valor:           linha[COL.AGENDAMENTOS.VALOR],
+    formaPagamento:  linha[COL.AGENDAMENTOS.FORMA_PAGAMENTO],
+    status:          linha[COL.AGENDAMENTOS.STATUS],
+    observacoes:     linha[COL.AGENDAMENTOS.OBS],
+    eventoCalendarID: linha[COL.AGENDAMENTOS.EVENTO_ID]
   };
 }
 
 // Converte uma linha da aba Clientes em objeto JavaScript
 function linhaParaCliente(linha) {
   return {
-    id:             linha[0],
-    nome:           linha[1],
+    id:             linha[COL.CLIENTES.ID],
+    nome:           linha[COL.CLIENTES.NOME],
     telefone:       linha[2],
     email:          linha[3],
     dataNascimento: linha[4],
     observacoes:    linha[5],
-    dataCadastro:   linha[6]
+    dataCadastro:   linha[COL.CLIENTES.DATA_CADASTRO]
   };
 }
 
 // Converte uma linha da aba Financeiro em objeto JavaScript
 function linhaParaLancamento(linha) {
   return {
-    id:             linha[0],
-    tipo:           linha[1],
-    valor:          linha[2],
-    data:           dataParaString(linha[3]),
-    descricao:      linha[4],
-    formaPagamento: linha[5],
-    categoria:      linha[6],
-    agendamentoID:  linha[7],
+    id:             linha[COL.FINANCEIRO.ID],
+    tipo:           linha[COL.FINANCEIRO.TIPO],
+    valor:          linha[COL.FINANCEIRO.VALOR],
+    data:           dataParaString(linha[COL.FINANCEIRO.DATA]),
+    descricao:      linha[COL.FINANCEIRO.DESCRICAO],
+    formaPagamento: linha[COL.FINANCEIRO.FORMA_PAGAMENTO],
+    categoria:      linha[COL.FINANCEIRO.CATEGORIA],
+    agendamentoID:  linha[COL.FINANCEIRO.AGENDAMENTO_ID],
     dataCriacao:    linha[8]
   };
 }
@@ -449,17 +478,15 @@ function horarioParaString(valor) {
 // ─── testarAgendamentosHoje: Diagnóstico via Web App ───
 function testarAgendamentosHoje() {
   var hojeStr = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd');
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Agendamentos');
-  var dados = sheet.getDataRange().getValues();
+  var dados = getDadosAgendamentos();
   var resultado = [];
   var debug = [];
   for (var i = 1; i < dados.length; i++) {
     var linha = dados[i];
-    if (!linha[0]) continue;
-    var dataFormatada = dataParaString(linha[3]);
-    debug.push({ linha: i, dataFormatada: dataFormatada, hoje: hojeStr, igual: dataFormatada === hojeStr, status: linha[9] });
-    if (dataFormatada === hojeStr && linha[9] !== 'cancelado') resultado.push(linhaParaAgendamento(linha));
+    if (!linha[COL.AGENDAMENTOS.ID]) continue;
+    var dataFormatada = dataParaString(linha[COL.AGENDAMENTOS.DATA]);
+    debug.push({ linha: i, dataFormatada: dataFormatada, hoje: hojeStr, igual: dataFormatada === hojeStr, status: linha[COL.AGENDAMENTOS.STATUS] });
+    if (dataFormatada === hojeStr && linha[COL.AGENDAMENTOS.STATUS] !== 'cancelado') resultado.push(linhaParaAgendamento(linha));
   }
   return { hoje: hojeStr, totalLinhas: dados.length - 1, debug: debug, agendamentos: resultado };
 }

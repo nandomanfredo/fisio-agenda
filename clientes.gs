@@ -17,22 +17,12 @@ function getClientes(filtroNome) {
   }
 
   // Sem filtro: verifica cache primeiro
-  var cached = getFromCache('clientes');
+  var cached = getFromCache(CACHE_KEY.CLIENTES);
   if (cached) return cached;
 
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Clientes');
-  var dados = sheet.getDataRange().getValues();
-  var clientes = [];
-
-  for (var i = 1; i < dados.length; i++) {
-    var linha = dados[i];
-    if (!linha[0]) continue;
-    clientes.push(linhaParaCliente(linha));
-  }
-
-  clientes.sort(function(a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
-  saveToCache('clientes', clientes, 300); // 5 minutos
+  var dados = getDadosClientes();
+  var clientes = getClientesComDados(dados);
+  saveToCache(CACHE_KEY.CLIENTES, clientes, CACHE_TTL.MEDIO);
   return clientes;
 }
 
@@ -41,8 +31,7 @@ function getClientes(filtroNome) {
 // Se o objeto 'dados' tiver um 'id', atualiza o registro existente.
 // Se não tiver 'id', cria um novo registro.
 function saveCliente(dados) {
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Clientes');
+  var sheet = getSheetOrThrow(SHEET.CLIENTES);
 
   if (dados.id) {
     // ── Atualização: procura a linha com o ID e substitui os dados ──
@@ -87,8 +76,7 @@ function saveCliente(dados) {
 // Cuidado: não verifica se o cliente tem agendamentos futuros.
 // No futuro, pode ser interessante adicionar essa verificação.
 function deleteCliente(id) {
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName('Clientes');
+  var sheet = getSheetOrThrow(SHEET.CLIENTES);
   var dados = sheet.getDataRange().getValues();
 
   // Percorre as linhas de baixo para cima para não deslocar os índices ao deletar
