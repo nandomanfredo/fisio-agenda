@@ -1048,7 +1048,7 @@ async function editarAgendamento(id) {
 
 async function salvarAgendamento() {
   var clienteSelect = document.getElementById('age-cliente');
-  var clienteNome = clienteSelect.options[clienteSelect.selectedIndex]?.text || '';
+  var clienteNome = clienteSelect.options[clienteSelect.selectedIndex] ? clienteSelect.options[clienteSelect.selectedIndex].text : '';
 
   var dados = {
     id:              document.getElementById('age-id').value || null,
@@ -1068,14 +1068,61 @@ async function salvarAgendamento() {
   if (!dados.data)       { mostrarToast('Informe a data.', true); return; }
   if (!dados.horario)    { mostrarToast('Informe o horário.', true); return; }
 
-  var resultado = await chamarBackend('saveAgendamento', dados);
-  if (resultado.sucesso) {
-    fecharModal('modal-agendamento');
-    mostrarToast(resultado.mensagem);
-    await carregarAgendamentos(true);
+  // ── UI OTIMISTA: fecha o modal e atualiza a tela IMEDIATAMENTE ──
+  // O backend processa em background — o usuário não espera os 3s do Apps Script
+  fecharModal('modal-agendamento');
+
+  var idTemporario = dados.id || ('temp_' + Date.now());
+  var agendamentoOtimista = {
+    id:              idTemporario,
+    clienteID:       dados.clienteID,
+    clienteNome:     dados.clienteNome,
+    data:            dados.data,
+    horario:         dados.horario,
+    duracao:         dados.duracao,
+    tipoAtendimento: dados.tipoAtendimento,
+    valor:           dados.valor,
+    formaPagamento:  dados.formaPagamento,
+    status:          dados.status,
+    observacoes:     dados.observacoes,
+    pago:            false,
+    _sincronizando:  true  // flag visual de "aguardando confirmação"
+  };
+
+  if (dados.id) {
+    // Edição: substitui o item existente na lista local
+    estado.agendamentos = estado.agendamentos.map(function(a) {
+      return String(a.id) === String(dados.id) ? agendamentoOtimista : a;
+    });
   } else {
-    mostrarToast(resultado.erro || 'Erro ao salvar.', true);
+    // Novo: insere na lista e reordena por horário
+    estado.agendamentos.push(agendamentoOtimista);
+    estado.agendamentos.sort(function(a, b) { return (a.horario || '').localeCompare(b.horario || ''); });
   }
+  renderizarAgendamentos(estado.agendamentos);
+  mostrarToast(dados.id ? 'Agendamento atualizado!' : 'Agendamento criado!');
+
+  // ── Backend em background: confirma a gravação e sincroniza o ID real ──
+  chamarBackend('saveAgendamento', dados).then(function(resultado) {
+    if (resultado && resultado.sucesso) {
+      // Substitui o ID temporário pelo ID real retornado pelo backend
+      estado.agendamentos = estado.agendamentos.map(function(a) {
+        if (String(a.id) === String(idTemporario)) {
+          a.id = resultado.id || idTemporario;
+          a._sincronizando = false;
+        }
+        return a;
+      });
+      renderizarAgendamentos(estado.agendamentos);
+    } else {
+      // Falha: remove o item otimista e avisa o usuário
+      estado.agendamentos = estado.agendamentos.filter(function(a) {
+        return String(a.id) !== String(idTemporario);
+      });
+      renderizarAgendamentos(estado.agendamentos);
+      mostrarToast((resultado && resultado.erro) || 'Erro ao salvar. Tente novamente.', true);
+    }
+  });
 }
 
 function abrirModalPagamento(agendamentoId) {
@@ -1099,25 +1146,43 @@ async function confirmarPagamento() {
   if (!dados.valor) { mostrarToast('Informe o valor.', true); return; }
   if (!dados.data)  { mostrarToast('Informe a data do pagamento.', true); return; }
 
-  var resultado = await chamarBackend('registrarPagamento', dados);
-  if (resultado.sucesso) {
-    fecharModal('modal-pagamento');
-    mostrarToast(resultado.mensagem);
-    await carregarAgendamentos(true);
-  } else {
-    mostrarToast(resultado.erro || 'Erro ao registrar pagamento.', true);
-  }
+  // UI otimista: marca como pago imediatamente
+  fecharModal('modal-pagamento');
+  estado.agendamentos = estado.agendamentos.map(function(a) {
+    return String(a.id) === String(dados.agendamentoID) ? Object.assign({}, a, { pago: true }) : a;
+  });
+  renderizarAgendamentos(estado.agendamentos);
+  mostrarToast('Pagamento registrado!');
+
+  chamarBackend('registrarPagamento', dados).then(function(resultado) {
+    if (!resultado || !resultado.sucesso) {
+      // Reverte se falhou
+      estado.agendamentos = estado.agendamentos.map(function(a) {
+        return String(a.id) === String(dados.agendamentoID) ? Object.assign({}, a, { pago: false }) : a;
+      });
+      renderizarAgendamentos(estado.agendamentos);
+      mostrarToast((resultado && resultado.erro) || 'Erro ao registrar pagamento.', true);
+    }
+  });
 }
 
 async function deletarAgendamento(id) {
   if (!confirm('Remover este agendamento?')) return;
-  var resultado = await chamarBackend('deleteAgendamento', { id: id });
-  if (resultado.sucesso) {
-    mostrarToast(resultado.mensagem);
-    await carregarAgendamentos(true);
-  } else {
-    mostrarToast(resultado.erro || 'Erro ao remover.', true);
-  }
+
+  // UI otimista: remove da lista imediatamente
+  var backup = estado.agendamentos.slice();
+  estado.agendamentos = estado.agendamentos.filter(function(a) { return String(a.id) !== String(id); });
+  renderizarAgendamentos(estado.agendamentos);
+  mostrarToast('Agendamento removido!');
+
+  chamarBackend('deleteAgendamento', { id: id }).then(function(resultado) {
+    if (!resultado || !resultado.sucesso) {
+      // Reverte se falhou
+      estado.agendamentos = backup;
+      renderizarAgendamentos(estado.agendamentos);
+      mostrarToast((resultado && resultado.erro) || 'Erro ao remover.', true);
+    }
+  });
 }
 
 // ──────────────────────────────────────────────────────
