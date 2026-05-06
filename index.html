@@ -2,76 +2,106 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <!-- Metatag PWA: permite adicionar à tela inicial no celular -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Fisio Agenda">
-  <meta name="theme-color" content="#6db8b8">
+  <meta name="theme-color" content="#006591">
   <title>Fisio Agenda</title>
 
-  <!-- Chart.js para os gráficos do Dashboard -->
+  <!-- Inter — tipografia Clinical Clarity -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Chart.js para gráficos do Dashboard -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
   <style>
     /* ══════════════════════════════════════════════
-       VARIÁVEIS DE COR — Paleta verde-água suave
+       DESIGN SYSTEM — Clinical Clarity
+       Paleta: azul profissional, cinzas, branco
     ══════════════════════════════════════════════ */
     :root {
-      --primary:     #6db8b8;   /* verde-água principal */
-      --primary-dk:  #4a9090;   /* verde-água escuro */
-      --primary-lt:  #e8f5f5;   /* verde-água clarinho (fundo) */
-      --accent:      #b8a0d8;   /* lavanda suave (destaque) */
-      --receita:     #5bbf8c;   /* verde para receitas */
-      --despesa:     #e07575;   /* vermelho suave para despesas */
-      --texto:       #333344;   /* texto principal */
-      --texto-sec:   #7788aa;   /* texto secundário */
-      --borda:       #ddeaea;   /* bordas */
-      --fundo:       #f4f8f8;   /* fundo da página */
-      --card:        #ffffff;   /* fundo dos cards */
-      --sombra:      0 2px 12px rgba(109,184,184,0.13);
+      --primary:          #006591;
+      --primary-light:    #0ea5e9;
+      --primary-cont:     #c9e6ff;
+      --on-primary:       #ffffff;
+      --secondary:        #505f76;
+      --surface:          #f6faff;   /* fundo da página */
+      --surface-card:     #ffffff;   /* cards e modais */
+      --surface-low:      #f0f4fa;   /* fundo de inputs desabilitados */
+      --on-surface:       #171c20;   /* texto principal */
+      --on-surface-v:     #3e4850;   /* texto secundário */
+      --outline:          #6e7881;   /* ícones e placeholders */
+      --outline-v:        #bec8d2;   /* bordas suaves */
+      --border:           #e2e8f0;   /* bordas de cards/inputs */
+      --receita:          #16a34a;
+      --despesa:          #dc2626;
+      --shadow:           0 4px 20px rgba(100,116,139,.10);
     }
 
-    /* ══════════════════════════════════════════════
-       RESET E BASE
-    ══════════════════════════════════════════════ */
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--fundo);
-      color: var(--texto);
-      min-height: 100vh;
-      padding-bottom: 70px; /* espaço para a nav inferior */
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--surface);
+      color: var(--on-surface);
+      min-height: 100dvh;
+      padding-bottom: 72px;
     }
 
     /* ══════════════════════════════════════════════
        CABEÇALHO
     ══════════════════════════════════════════════ */
     .header {
-      background: linear-gradient(135deg, var(--primary), var(--primary-dk));
-      color: white;
-      padding: 16px 20px 12px;
+      background: var(--surface-card);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
       position: sticky;
       top: 0;
       z-index: 100;
-      box-shadow: 0 2px 8px rgba(74,144,144,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
-    .header h1 { font-size: 1.2rem; font-weight: 600; letter-spacing: 0.3px; }
-    .header p  { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
+    .header-brand {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: -0.01em;
+    }
+    .header-date {
+      font-size: 0.75rem;
+      color: var(--on-surface-v);
+      margin-top: 2px;
+    }
+    .header-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--primary-cont);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
 
     /* ══════════════════════════════════════════════
-       NAVEGAÇÃO INFERIOR FIXA
+       NAVEGAÇÃO INFERIOR
     ══════════════════════════════════════════════ */
     .nav-bottom {
       position: fixed;
       bottom: 0; left: 0; right: 0;
-      background: white;
+      background: var(--surface-card);
+      border-top: 1px solid var(--border);
       display: flex;
-      border-top: 1px solid var(--borda);
-      box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
       z-index: 200;
+      padding-bottom: env(safe-area-inset-bottom);
     }
     .nav-btn {
       flex: 1;
@@ -83,76 +113,76 @@
       background: none;
       border: none;
       cursor: pointer;
-      color: var(--texto-sec);
+      color: var(--outline);
       font-size: 0.65rem;
+      font-family: inherit;
+      font-weight: 500;
       gap: 4px;
       transition: color 0.2s;
+      min-height: 56px;
     }
-    .nav-btn.ativo { color: var(--primary-dk); font-weight: 600; }
+    .nav-btn.ativo { color: var(--primary); font-weight: 600; }
     .nav-btn svg   { width: 22px; height: 22px; }
 
     /* ══════════════════════════════════════════════
        ABAS DE CONTEÚDO
     ══════════════════════════════════════════════ */
-    .aba { display: none; padding: 16px; }
+    .aba { display: none; padding: 16px 16px 0; }
     .aba.ativa { display: block; }
 
     /* ══════════════════════════════════════════════
-       CARDS / SEÇÕES
+       CARDS
     ══════════════════════════════════════════════ */
     .card {
-      background: var(--card);
-      border-radius: 12px;
+      background: var(--surface-card);
+      border-radius: 8px;
       padding: 16px;
-      margin-bottom: 14px;
-      box-shadow: var(--sombra);
-      border: 1px solid var(--borda);
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
     }
     .card-titulo {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--primary-dk);
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--on-surface-v);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
       margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
     }
 
     /* ══════════════════════════════════════════════
        FORMULÁRIOS
     ══════════════════════════════════════════════ */
-    .campo {
-      margin-bottom: 12px;
-    }
+    .campo { margin-bottom: 14px; }
     .campo label {
       display: block;
-      font-size: 0.78rem;
-      color: var(--texto-sec);
-      margin-bottom: 4px;
+      font-size: 0.74rem;
       font-weight: 500;
+      color: var(--on-surface-v);
+      margin-bottom: 5px;
+      letter-spacing: 0.02em;
     }
     .campo input,
     .campo select,
     .campo textarea {
       width: 100%;
-      padding: 10px 12px;
-      border: 1.5px solid var(--borda);
-      border-radius: 8px;
+      padding: 11px 13px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
       font-size: 0.9rem;
-      color: var(--texto);
-      background: white;
-      transition: border-color 0.2s;
+      font-family: inherit;
+      color: var(--on-surface);
+      background: var(--surface-card);
+      transition: border-color 0.15s, box-shadow 0.15s;
       -webkit-appearance: none;
     }
     .campo input:focus,
     .campo select:focus,
     .campo textarea:focus {
       outline: none;
-      border-color: var(--primary);
+      border-color: var(--primary-light);
+      box-shadow: 0 0 0 3px rgba(14,165,233,.12);
     }
     .campo textarea { resize: vertical; min-height: 70px; }
-
-    /* Dois campos lado a lado */
     .campo-duplo {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -167,146 +197,457 @@
       align-items: center;
       justify-content: center;
       gap: 6px;
-      padding: 10px 18px;
-      border-radius: 8px;
+      padding: 11px 18px;
+      border-radius: 4px;
       border: none;
       font-size: 0.875rem;
       font-weight: 600;
+      font-family: inherit;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.15s;
     }
-    .btn-primario  { background: var(--primary); color: white; }
-    .btn-primario:hover { background: var(--primary-dk); }
-    .btn-secundario { background: var(--primary-lt); color: var(--primary-dk); border: 1.5px solid var(--borda); }
-    .btn-perigo    { background: #fff0f0; color: var(--despesa); border: 1.5px solid #ffd0d0; }
-    .btn-sucesso   { background: #f0fff6; color: var(--receita); border: 1.5px solid #c0ecd4; }
-    .btn-full      { width: 100%; }
-    .btn-sm        { padding: 6px 12px; font-size: 0.78rem; }
+    .btn-primario  { background: var(--primary-light); color: white; }
+    .btn-primario:active { background: var(--primary); }
+    .btn-secundario { background: white; color: var(--on-surface-v); border: 1px solid var(--border); }
+    .btn-perigo    { background: #fef2f2; color: var(--despesa); border: 1px solid #fecaca; }
+    .btn-sucesso   { background: #f0fdf4; color: var(--receita); border: 1px solid #bbf7d0; }
+    .btn-pagamento { background: #f0fdf4; color: var(--receita); border: 1px solid #bbf7d0; }
+    .btn-full  { width: 100%; }
+    .btn-sm    { padding: 7px 12px; font-size: 0.78rem; }
 
     /* ══════════════════════════════════════════════
-       LISTA DE ITENS (clientes, agendamentos, etc.)
+       FAB — Floating Action Button
     ══════════════════════════════════════════════ */
-    .lista-item {
+    .fab {
+      position: fixed;
+      bottom: 82px;
+      right: 20px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--primary-light);
+      color: white;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(14,165,233,.35);
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 12px;
-      border-radius: 10px;
-      margin-bottom: 8px;
-      background: var(--fundo);
-      border: 1px solid var(--borda);
+      justify-content: center;
+      z-index: 150;
+      transition: transform 0.15s, box-shadow 0.15s;
     }
-    .lista-item-info { flex: 1; min-width: 0; }
-    .lista-item-nome { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .lista-item-sub  { font-size: 0.75rem; color: var(--texto-sec); margin-top: 2px; }
-    .lista-item-acoes { display: flex; gap: 6px; margin-left: 8px; flex-shrink: 0; }
+    .fab:active { transform: scale(0.94); box-shadow: 0 2px 8px rgba(14,165,233,.3); }
+    .fab svg { width: 22px; height: 22px; }
 
     /* ══════════════════════════════════════════════
-       BADGES DE STATUS
+       STATUS PILLS
     ══════════════════════════════════════════════ */
-    .badge {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 20px;
-      font-size: 0.7rem;
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.68rem;
       font-weight: 600;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
     }
-    .badge-agendado   { background: #e8f0ff; color: #4466cc; }
-    .badge-confirmado { background: #e8fff0; color: #338855; }
-    .badge-realizado  { background: #f0f0f0; color: #666688; }
-    .badge-cancelado  { background: #fff0f0; color: #cc4444; }
-    .badge-receita    { background: #e8fff0; color: #338855; }
-    .badge-despesa    { background: #fff0f0; color: #cc4444; }
-    .badge-pago       { background: #d4f5e9; color: #1a7a4a; }
-    .badge-pendente   { background: #fff3e0; color: #c05800; }
-    .btn-pagamento    { background: #d4f5e9; color: #1a7a4a; border: 1.5px solid #a8e6c7; }
+    .pill-agendado   { background: #dbeafe; color: #1d4ed8; }
+    .pill-confirmado { background: #dcfce7; color: #15803d; }
+    .pill-realizado  { background: #f1f5f9; color: #475569; }
+    .pill-cancelado  { background: #fee2e2; color: #b91c1c; }
+    .pill-pago       { background: #dcfce7; color: #15803d; }
+    .pill-pendente   { background: #fef3c7; color: #b45309; }
 
     /* ══════════════════════════════════════════════
-       CARDS DO DASHBOARD
+       AGENDA — WEEK STRIP
     ══════════════════════════════════════════════ */
-    .cards-resumo {
+    .week-strip {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      scrollbar-width: none;
+      margin-bottom: 12px;
+    }
+    .week-strip::-webkit-scrollbar { display: none; }
+    .week-day {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 8px;
+      min-width: 44px;
+      cursor: pointer;
+      background: none;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+      flex-shrink: 0;
+      font-family: inherit;
+    }
+    .week-day-label {
+      font-size: 0.62rem;
+      font-weight: 500;
+      color: var(--on-surface-v);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .week-day-num {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--on-surface);
+      margin-top: 3px;
+      line-height: 1;
+    }
+    .week-day-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--primary-light);
+      margin-top: 4px;
+      opacity: 0;
+    }
+    .week-day.tem-agendamento .week-day-dot { opacity: 1; }
+    .week-day.hoje {
+      background: var(--primary-light);
+      border-color: var(--primary-light);
+    }
+    .week-day.hoje .week-day-label,
+    .week-day.hoje .week-day-num { color: white; }
+    .week-day.hoje .week-day-dot { background: white; }
+    .week-day.selecionado:not(.hoje) {
+      background: var(--surface-low);
+      border-color: var(--outline-v);
+    }
+
+    /* ══════════════════════════════════════════════
+       AGENDA — FILTER CHIPS
+    ══════════════════════════════════════════════ */
+    .filter-chips {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .filter-chips::-webkit-scrollbar { display: none; }
+    .filter-chip {
+      padding: 6px 16px;
+      border-radius: 999px;
+      border: 1.5px solid var(--border);
+      background: white;
+      font-size: 0.78rem;
+      font-family: inherit;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--on-surface-v);
+      white-space: nowrap;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .filter-chip.ativo {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    /* ══════════════════════════════════════════════
+       AGENDA — APPOINTMENT CARDS
+    ══════════════════════════════════════════════ */
+    .appt-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 8px;
+    }
+    .appt-card._sincronizando { opacity: 0.6; }
+    .appt-time {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 34px;
+      flex-shrink: 0;
+    }
+    .appt-hour {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1;
+    }
+    .appt-min {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--outline);
+      line-height: 1;
+      margin-top: 2px;
+    }
+    .appt-divider {
+      width: 1px;
+      height: 38px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+    .appt-body { flex: 1; min-width: 0; }
+    .appt-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--on-surface);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .appt-type {
+      font-size: 0.74rem;
+      color: var(--on-surface-v);
+      margin-top: 2px;
+    }
+    .appt-date {
+      font-size: 0.7rem;
+      color: var(--outline);
+      margin-top: 2px;
+    }
+    .appt-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .appt-actions { display: flex; gap: 5px; }
+
+    /* ══════════════════════════════════════════════
+       PACIENTES — CARDS
+    ══════════════════════════════════════════════ */
+    .patient-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 8px;
+    }
+    .avatar-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--primary-cont);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+    .patient-info { flex: 1; min-width: 0; }
+    .patient-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--on-surface);
+    }
+    .patient-sub {
+      font-size: 0.74rem;
+      color: var(--on-surface-v);
+      margin-top: 2px;
+    }
+    .patient-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    /* ══════════════════════════════════════════════
+       BUSCA
+    ══════════════════════════════════════════════ */
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+    }
+    .search-bar input {
+      border: none;
+      outline: none;
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: var(--on-surface);
+      background: transparent;
+      flex: 1;
+    }
+    .search-bar svg { color: var(--outline); flex-shrink: 0; }
+
+    /* ══════════════════════════════════════════════
+       FINANCEIRO — SUMMARY
+    ══════════════════════════════════════════════ */
+    .fin-summary-card {
+      background: var(--primary);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 12px;
+      color: white;
+    }
+    .fin-summary-label {
+      font-size: 0.72rem;
+      font-weight: 500;
+      opacity: 0.8;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .fin-summary-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-top: 4px;
+      letter-spacing: -0.02em;
+    }
+    .fin-mini-cards {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
-    .card-resumo {
-      background: var(--card);
-      border-radius: 12px;
+    .fin-mini-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
       padding: 14px;
-      text-align: center;
-      box-shadow: var(--sombra);
-      border: 1px solid var(--borda);
     }
-    .card-resumo.saldo { grid-column: span 2; }
-    .card-resumo-label { font-size: 0.72rem; color: var(--texto-sec); font-weight: 500; margin-bottom: 4px; }
-    .card-resumo-valor { font-size: 1.4rem; font-weight: 700; }
-    .valor-receita { color: var(--receita); }
-    .valor-despesa { color: var(--despesa); }
-    .valor-saldo   { color: var(--primary-dk); }
+    .fin-mini-label {
+      font-size: 0.72rem;
+      color: var(--on-surface-v);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .fin-mini-value {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-top: 4px;
+    }
 
     /* ══════════════════════════════════════════════
-       FILTROS DE PERÍODO
+       PERÍODO (Financeiro)
     ══════════════════════════════════════════════ */
-    .filtro-periodo {
+    .periodo-tabs {
       display: flex;
       gap: 6px;
       margin-bottom: 14px;
-      flex-wrap: wrap;
+      overflow-x: auto;
+      scrollbar-width: none;
     }
-    .filtro-btn {
-      padding: 6px 14px;
-      border-radius: 20px;
-      border: 1.5px solid var(--borda);
+    .periodo-tabs::-webkit-scrollbar { display: none; }
+    .periodo-tab {
+      padding: 7px 16px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
       background: white;
-      font-size: 0.78rem;
-      cursor: pointer;
-      color: var(--texto-sec);
+      font-size: 0.8rem;
+      font-family: inherit;
       font-weight: 500;
+      cursor: pointer;
+      color: var(--on-surface-v);
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.15s;
     }
-    .filtro-btn.ativo { background: var(--primary); color: white; border-color: var(--primary); }
+    .periodo-tab.ativo { background: var(--primary); color: white; border-color: var(--primary); }
 
     /* ══════════════════════════════════════════════
-       SEÇÃO DE AGENDA — seletor de dia/semana
+       FINANCEIRO — TRANSACTION ROWS
     ══════════════════════════════════════════════ */
-    .agenda-tabs {
+    .transaction-row {
       display: flex;
-      background: var(--primary-lt);
-      border-radius: 10px;
-      padding: 4px;
-      margin-bottom: 14px;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--surface-low);
     }
-    .agenda-tab {
-      flex: 1;
-      padding: 8px;
-      border: none;
-      background: none;
-      border-radius: 7px;
-      font-size: 0.82rem;
-      cursor: pointer;
-      color: var(--texto-sec);
+    .transaction-row:last-child { border-bottom: none; }
+    .tx-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .tx-icon.receita { background: #dcfce7; color: #15803d; }
+    .tx-icon.despesa { background: #fee2e2; color: #b91c1c; }
+    .tx-body { flex: 1; min-width: 0; }
+    .tx-desc {
+      font-size: 0.88rem;
       font-weight: 500;
+      color: var(--on-surface);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .agenda-tab.ativo { background: white; color: var(--primary-dk); font-weight: 700; box-shadow: var(--sombra); }
+    .tx-meta { font-size: 0.72rem; color: var(--on-surface-v); margin-top: 1px; }
+    .tx-value { font-size: 0.88rem; font-weight: 700; flex-shrink: 0; }
+    .tx-value.receita { color: var(--receita); }
+    .tx-value.despesa { color: var(--despesa); }
+    .tx-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
     /* ══════════════════════════════════════════════
-       MENSAGEM DE ESTADO VAZIO
+       DASHBOARD
     ══════════════════════════════════════════════ */
-    .vazio {
-      text-align: center;
-      padding: 30px 20px;
-      color: var(--texto-sec);
-      font-size: 0.85rem;
+    .dash-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--on-surface);
+      letter-spacing: -0.02em;
+      margin-bottom: 2px;
     }
+    .dash-sub {
+      font-size: 0.82rem;
+      color: var(--on-surface-v);
+      margin-bottom: 16px;
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .kpi-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .kpi-card.span2 { grid-column: span 2; }
+    .kpi-label {
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: var(--on-surface-v);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .kpi-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-top: 4px;
+      letter-spacing: -0.01em;
+    }
+    .kpi-value.receita { color: var(--receita); }
+    .kpi-value.despesa { color: var(--despesa); }
+    .kpi-value.saldo   { color: var(--primary); }
+    .grafico-container { position: relative; height: 200px; }
 
     /* ══════════════════════════════════════════════
-       MODAL (para formulários de criação/edição)
+       MODAL
     ══════════════════════════════════════════════ */
     .modal-overlay {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.45);
+      background: rgba(23,28,32,.5);
       z-index: 300;
       align-items: flex-end;
     }
@@ -315,31 +656,53 @@
       background: white;
       border-radius: 20px 20px 0 0;
       width: 100%;
-      max-height: 92vh;
+      max-height: 92dvh;
       overflow-y: auto;
-      padding: 20px;
-      padding-bottom: 30px;
+      padding: 0 20px 20px;
+      padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    }
+    .modal-handle {
+      width: 40px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--outline-v);
+      margin: 14px auto 16px;
     }
     .modal-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
     }
-    .modal-titulo { font-size: 1rem; font-weight: 700; color: var(--primary-dk); }
-    .modal-fechar { background: var(--fundo); border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 1.2rem; cursor: pointer; color: var(--texto-sec); }
+    .modal-titulo { font-size: 1rem; font-weight: 700; color: var(--on-surface); }
+    .modal-fechar {
+      background: var(--surface-low);
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      font-size: 1rem;
+      cursor: pointer;
+      color: var(--on-surface-v);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-    /* Toast de notificação */
+    /* ══════════════════════════════════════════════
+       TOAST
+    ══════════════════════════════════════════════ */
     .toast {
       position: fixed;
-      bottom: 80px;
+      bottom: 88px;
       left: 50%;
       transform: translateX(-50%) translateY(20px);
-      background: #333;
+      background: var(--on-surface);
       color: white;
       padding: 10px 20px;
       border-radius: 24px;
       font-size: 0.85rem;
+      font-family: inherit;
       z-index: 500;
       opacity: 0;
       transition: all 0.3s;
@@ -347,75 +710,79 @@
     }
     .toast.visivel { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-    /* Loading spinner */
-    .loading {
+    /* ══════════════════════════════════════════════
+       ESTADOS VAZIOS / LOADING
+    ══════════════════════════════════════════════ */
+    .loading, .vazio {
       text-align: center;
-      padding: 24px;
-      color: var(--texto-sec);
+      padding: 36px 20px;
+      color: var(--on-surface-v);
       font-size: 0.85rem;
     }
+    .vazio-icon { font-size: 2rem; margin-bottom: 8px; opacity: .4; }
 
-    /* Linha separadora */
-    .separador { border: none; border-top: 1px solid var(--borda); margin: 14px 0; }
-
-    /* Canvas dos gráficos */
-    .grafico-container { position: relative; height: 200px; margin-bottom: 14px; }
+    /* ══════════════════════════════════════════════
+       MISC
+    ══════════════════════════════════════════════ */
+    .separador { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+    #filtro-livre { display: none; margin-bottom: 14px; }
+    .spacer { height: 16px; }
   </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════════════════
+<!-- ══════════════════════════════════════════════
      CABEÇALHO
-══════════════════════════════════════════════════════ -->
+══════════════════════════════════════════════ -->
 <header class="header">
-  <h1 id="header-titulo">📅 Agenda</h1>
-  <p id="header-sub">Hoje, <span id="data-hoje"></span></p>
+  <div>
+    <div class="header-brand">Fisio Agenda</div>
+    <div class="header-date" id="data-hoje"></div>
+  </div>
+  <div class="header-avatar">FA</div>
 </header>
 
-<!-- ══════════════════════════════════════════════════════
+<!-- ══════════════════════════════════════════════
      ABA: AGENDA
-══════════════════════════════════════════════════════ -->
+══════════════════════════════════════════════ -->
 <div id="aba-agenda" class="aba ativa">
-  <div class="agenda-tabs">
-    <button class="agenda-tab ativo" onclick="verAgendaHoje()">Hoje</button>
-    <button class="agenda-tab" onclick="verAgendaSemana()">Semana</button>
-  </div>
+  <!-- Calendário semanal interativo -->
+  <div class="week-strip" id="week-strip"></div>
 
-  <button class="btn btn-primario btn-full" onclick="abrirModalAgendamento()" style="margin-bottom:14px">
-    + Novo Agendamento
-  </button>
+  <!-- Chips de filtro -->
+  <div class="filter-chips">
+    <button class="filter-chip ativo" id="chip-hoje" onclick="verAgendaHoje()">Hoje</button>
+    <button class="filter-chip" id="chip-semana" onclick="verAgendaSemana()">Esta semana</button>
+  </div>
 
   <div id="lista-agendamentos"><div class="loading">Carregando agenda...</div></div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════
-     ABA: CLIENTES
-══════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════
+     ABA: PACIENTES
+══════════════════════════════════════════════ -->
 <div id="aba-clientes" class="aba">
-  <div class="card">
-    <div class="campo">
-      <input type="search" id="busca-cliente" placeholder="🔍 Buscar cliente por nome..." oninput="buscarClientes()">
-    </div>
+  <div class="search-bar">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="search" id="busca-cliente" placeholder="Buscar paciente por nome..." oninput="buscarClientes()">
   </div>
 
-  <button class="btn btn-primario btn-full" onclick="abrirModalCliente()" style="margin-bottom:14px">
-    + Novo Cliente
-  </button>
-
-  <div id="lista-clientes"><div class="loading">Carregando clientes...</div></div>
+  <div id="lista-clientes"><div class="loading">Carregando pacientes...</div></div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════
+<!-- ══════════════════════════════════════════════
      ABA: FINANCEIRO
-══════════════════════════════════════════════════════ -->
+══════════════════════════════════════════════ -->
 <div id="aba-financeiro" class="aba">
-  <div class="filtro-periodo">
-    <button class="filtro-btn ativo" onclick="filtrarPeriodo('mes-atual', this)">Este mês</button>
-    <button class="filtro-btn" onclick="filtrarPeriodo('mes-anterior', this)">Mês passado</button>
-    <button class="filtro-btn" onclick="filtrarPeriodo('livre', this)">Período livre</button>
+  <div class="periodo-tabs">
+    <button class="periodo-tab ativo" onclick="filtrarPeriodo('mes-atual', this)">Este mês</button>
+    <button class="periodo-tab" onclick="filtrarPeriodo('mes-anterior', this)">Mês passado</button>
+    <button class="periodo-tab" onclick="filtrarPeriodo('livre', this)">Período livre</button>
   </div>
 
-  <div id="filtro-livre" style="display:none" class="card">
+  <div id="filtro-livre" class="card">
     <div class="campo-duplo">
       <div class="campo">
         <label>De</label>
@@ -429,21 +796,20 @@
     <button class="btn btn-primario btn-full btn-sm" onclick="carregarLancamentos()">Filtrar</button>
   </div>
 
-  <button class="btn btn-primario btn-full" onclick="abrirModalLancamento()" style="margin-bottom:14px">
-    + Novo Lançamento
-  </button>
-
   <div id="lista-lancamentos"><div class="loading">Carregando lançamentos...</div></div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════
+<!-- ══════════════════════════════════════════════
      ABA: DASHBOARD
-══════════════════════════════════════════════════════ -->
+══════════════════════════════════════════════ -->
 <div id="aba-dashboard" class="aba">
+  <div class="dash-title">Dashboard</div>
+  <div class="dash-sub" id="dash-periodo-label">Carregando...</div>
+
   <!-- Seletor de mês -->
   <div class="card">
-    <div class="campo-duplo">
-      <div class="campo">
+    <div class="campo-duplo" style="margin-bottom:10px">
+      <div class="campo" style="margin-bottom:0">
         <label>Mês</label>
         <select id="dash-mes">
           <option value="1">Janeiro</option><option value="2">Fevereiro</option>
@@ -454,7 +820,7 @@
           <option value="11">Novembro</option><option value="12">Dezembro</option>
         </select>
       </div>
-      <div class="campo">
+      <div class="campo" style="margin-bottom:0">
         <label>Ano</label>
         <input type="number" id="dash-ano" value="2025" min="2020" max="2030">
       </div>
@@ -462,80 +828,106 @@
     <button class="btn btn-primario btn-full btn-sm" onclick="carregarDashboard()">Atualizar</button>
   </div>
 
-  <!-- Cards de resumo -->
-  <div class="cards-resumo">
-    <div class="card-resumo">
-      <div class="card-resumo-label">Receitas</div>
-      <div class="card-resumo-valor valor-receita" id="dash-receita">R$ --</div>
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card span2">
+      <div class="kpi-label">Saldo · <span id="dash-atendimentos">--</span> atendimentos realizados</div>
+      <div class="kpi-value saldo" id="dash-saldo">R$ --</div>
     </div>
-    <div class="card-resumo">
-      <div class="card-resumo-label">Despesas</div>
-      <div class="card-resumo-valor valor-despesa" id="dash-despesa">R$ --</div>
+    <div class="kpi-card">
+      <div class="kpi-label">Receitas</div>
+      <div class="kpi-value receita" id="dash-receita">R$ --</div>
     </div>
-    <div class="card-resumo saldo">
-      <div class="card-resumo-label">Saldo do mês · <span id="dash-atendimentos">--</span> atendimentos</div>
-      <div class="card-resumo-valor valor-saldo" id="dash-saldo">R$ --</div>
+    <div class="kpi-card">
+      <div class="kpi-label">Despesas</div>
+      <div class="kpi-value despesa" id="dash-despesa">R$ --</div>
     </div>
   </div>
 
-  <!-- Gráfico de barras: Receitas x Despesas por mês -->
+  <!-- Gráfico de barras -->
   <div class="card">
-    <div class="card-titulo">📊 Receitas x Despesas (6 meses)</div>
+    <div class="card-titulo">Receitas × Despesas — 6 meses</div>
     <div class="grafico-container">
       <canvas id="grafico-barras"></canvas>
     </div>
   </div>
 
-  <!-- Gráfico de pizza: Despesas por categoria -->
+  <!-- Gráfico de pizza -->
   <div class="card">
-    <div class="card-titulo">🍕 Despesas por Categoria</div>
+    <div class="card-titulo">Despesas por Categoria</div>
     <div class="grafico-container" style="height:220px">
       <canvas id="grafico-pizza"></canvas>
     </div>
     <div id="legenda-categorias"></div>
   </div>
+  <div class="spacer"></div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════
+<!-- ══════════════════════════════════════════════
      NAVEGAÇÃO INFERIOR
-══════════════════════════════════════════════════════ -->
+══════════════════════════════════════════════ -->
 <nav class="nav-bottom">
   <button class="nav-btn ativo" id="nav-agenda" onclick="navegarPara('agenda')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
-      <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/>
+      <line x1="8" y1="2" x2="8" y2="6"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
     </svg>
     Agenda
   </button>
   <button class="nav-btn" id="nav-clientes" onclick="navegarPara('clientes')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
       <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
     </svg>
-    Clientes
+    Pacientes
   </button>
   <button class="nav-btn" id="nav-financeiro" onclick="navegarPara('financeiro')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23"/>
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
     </svg>
     Financeiro
   </button>
   <button class="nav-btn" id="nav-dashboard" onclick="navegarPara('dashboard')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/>
     </svg>
     Dashboard
   </button>
 </nav>
 
-<!-- ══════════════════════════════════════════════════════
+<!-- FAB por aba -->
+<button class="fab" id="fab-agenda" onclick="abrirModalAgendamento()" title="Novo agendamento">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+</button>
+<button class="fab" id="fab-clientes" style="display:none" onclick="abrirModalCliente()" title="Novo paciente">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+</button>
+<button class="fab" id="fab-financeiro" style="display:none" onclick="abrirModalLancamento()" title="Novo lançamento">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+</button>
+
+<!-- ══════════════════════════════════════════════
      MODAIS
-══════════════════════════════════════════════════════ -->
+══════════════════════════════════════════════ -->
 
 <!-- Modal: Agendamento -->
 <div class="modal-overlay" id="modal-agendamento">
   <div class="modal">
+    <div class="modal-handle"></div>
     <div class="modal-header">
       <span class="modal-titulo" id="modal-agendamento-titulo">Novo Agendamento</span>
       <button class="modal-fechar" onclick="fecharModal('modal-agendamento')">✕</button>
@@ -543,9 +935,7 @@
     <input type="hidden" id="age-id">
     <div class="campo">
       <label>Paciente *</label>
-      <select id="age-cliente">
-        <option value="">Selecione o paciente...</option>
-      </select>
+      <select id="age-cliente"><option value="">Selecione o paciente...</option></select>
     </div>
     <div class="campo-duplo">
       <div class="campo">
@@ -617,25 +1007,26 @@
   </div>
 </div>
 
-<!-- Modal: Cliente -->
+<!-- Modal: Paciente -->
 <div class="modal-overlay" id="modal-cliente">
   <div class="modal">
+    <div class="modal-handle"></div>
     <div class="modal-header">
-      <span class="modal-titulo" id="modal-cliente-titulo">Novo Cliente</span>
+      <span class="modal-titulo" id="modal-cliente-titulo">Novo Paciente</span>
       <button class="modal-fechar" onclick="fecharModal('modal-cliente')">✕</button>
     </div>
     <input type="hidden" id="cli-id">
     <div class="campo">
       <label>Nome completo *</label>
-      <input type="text" id="cli-nome" placeholder="Nome do paciente">
+      <input type="text" id="cli-nome" placeholder="Nome do paciente" autocomplete="name">
     </div>
     <div class="campo">
       <label>Telefone / WhatsApp</label>
-      <input type="tel" id="cli-tel" placeholder="(11) 99999-9999">
+      <input type="tel" id="cli-tel" placeholder="(11) 99999-9999" autocomplete="tel">
     </div>
     <div class="campo">
       <label>E-mail</label>
-      <input type="email" id="cli-email" placeholder="email@exemplo.com">
+      <input type="email" id="cli-email" placeholder="email@exemplo.com" autocomplete="email">
     </div>
     <div class="campo">
       <label>Data de Nascimento</label>
@@ -645,21 +1036,22 @@
       <label>Observações / Diagnóstico</label>
       <textarea id="cli-obs" placeholder="Histórico clínico, diagnóstico, alergias..."></textarea>
     </div>
-    <button class="btn btn-primario btn-full" onclick="salvarCliente()">Salvar Cliente</button>
+    <button class="btn btn-primario btn-full" onclick="salvarCliente()">Salvar Paciente</button>
   </div>
 </div>
 
 <!-- Modal: Registrar Pagamento -->
 <div class="modal-overlay" id="modal-pagamento">
   <div class="modal">
+    <div class="modal-handle"></div>
     <div class="modal-header">
-      <span class="modal-titulo">💰 Registrar Pagamento</span>
+      <span class="modal-titulo">Registrar Pagamento</span>
       <button class="modal-fechar" onclick="fecharModal('modal-pagamento')">✕</button>
     </div>
     <input type="hidden" id="pag-id">
     <div class="campo">
       <label>Paciente</label>
-      <input type="text" id="pag-paciente" disabled style="background:#f4f8f8;color:#888">
+      <input type="text" id="pag-paciente" disabled style="background:var(--surface-low);color:var(--on-surface-v)">
     </div>
     <div class="campo-duplo">
       <div class="campo">
@@ -682,13 +1074,14 @@
         <option value="transferencia">Transferência</option>
       </select>
     </div>
-    <button class="btn btn-primario btn-full" onclick="confirmarPagamento()">✓ Confirmar Pagamento</button>
+    <button class="btn btn-sucesso btn-full" onclick="confirmarPagamento()">Confirmar Pagamento</button>
   </div>
 </div>
 
 <!-- Modal: Lançamento Financeiro -->
 <div class="modal-overlay" id="modal-lancamento">
   <div class="modal">
+    <div class="modal-handle"></div>
     <div class="modal-header">
       <span class="modal-titulo">Novo Lançamento</span>
       <button class="modal-fechar" onclick="fecharModal('modal-lancamento')">✕</button>
@@ -727,9 +1120,7 @@
       </div>
       <div class="campo">
         <label>Categoria</label>
-        <select id="lan-categoria">
-          <!-- Preenchido dinamicamente -->
-        </select>
+        <select id="lan-categoria"></select>
       </div>
     </div>
     <button class="btn btn-primario btn-full" onclick="salvarLancamento()">Salvar Lançamento</button>
@@ -739,17 +1130,15 @@
 <!-- Toast de notificação -->
 <div class="toast" id="toast"></div>
 
-<!-- ══════════════════════════════════════════════════════
+<!-- ══════════════════════════════════════════════
      JAVASCRIPT — Lógica do Frontend
-══════════════════════════════════════════════════════ -->
+══════════════════════════════════════════════ -->
 <script>
-// ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // CONFIGURAÇÃO
-// Cole aqui a URL do seu Web App após publicar no Apps Script
-// ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw6BMUA48kteeKuQuRtGLLpxz69bJUNef1Tpi0TUCXKDLSiiXEar_a2JAau_1Hpjmx8/exec';
 
-// Categorias financeiras por tipo
 var CATEGORIAS = {
   receita: ['Atendimento', 'Outros'],
   despesa: [
@@ -759,53 +1148,107 @@ var CATEGORIAS = {
   ]
 };
 
+var DIAS_SEMANA  = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
+var MESES_NOMES  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
 // Estado global — todos os dados ficam aqui após o carregamento inicial
 var estado = {
-  clientes: [],
-  agendamentos: [],        // agendamentos de HOJE
-  agendamentosSemana: [],  // agendamentos dos próximos 7 dias
-  semanaCarregada: false,  // true quando a semana já foi buscada no backend
-  lancamentos: [],
-  dashboardData: null,
-  periodoFin: 'mes-atual',
-  graficoBarras: null,
-  graficoPizza: null,
+  clientes:             [],
+  agendamentos:         [],   // agendamentos de HOJE
+  agendamentosSemana:   [],   // próximos 7 dias
+  semanaCarregada:      false,
+  lancamentos:          [],
+  dashboardData:        null,
+  periodoFin:           'mes-atual',
+  graficoBarras:        null,
+  graficoPizza:         null,
   carregandoAgendamentos: false,
-  dashboardCarregado: false
+  dashboardCarregado:   false,
+  dataSelecionada:      null  // data clicada no week-strip
 };
 
-// ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // INICIALIZAÇÃO
-// ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async function() {
   var hoje = new Date();
+  estado.dataSelecionada = dataLocalISO(hoje);
+
   document.getElementById('data-hoje').textContent = hoje.toLocaleDateString('pt-BR', {
     weekday: 'long', day: 'numeric', month: 'long'
   });
+
   var mes = hoje.getMonth() + 1;
   var ano = hoje.getFullYear();
   document.getElementById('dash-mes').value = mes;
   document.getElementById('dash-ano').value = ano;
+  document.getElementById('dash-periodo-label').textContent = MESES_NOMES[mes - 1] + ' ' + ano;
+
   var dataHoje = dataLocalISO(hoje);
   document.getElementById('age-data').value = dataHoje;
   document.getElementById('lan-data').value = dataHoje;
 
+  renderizarWeekStrip();
   await carregarDadosIniciais(mes, ano);
 });
 
-// ──────────────────────────────────────────────────────
-// ATUALIZAÇÃO AUTOMÁTICA AO VOLTAR PARA O APP (mobile)
-// ──────────────────────────────────────────────────────
-// No celular, o navegador congela a página quando você troca de app.
-// Ao voltar, os dados ficam com a hora em que você abriu pela primeira vez.
-// Esses dois eventos detectam o retorno e recarregam se passaram mais de 5 minutos.
+// ─────────────────────────────────────────────
+// WEEK STRIP — calendário semanal interativo
+// ─────────────────────────────────────────────
+function renderizarWeekStrip() {
+  var hoje    = new Date();
+  var hojeStr = dataLocalISO(hoje);
+  var strip   = document.getElementById('week-strip');
+  var html    = '';
 
-var TEMPO_RECARREGAR_MS = 5 * 60 * 1000; // 5 minutos
+  for (var i = 0; i < 7; i++) {
+    var d    = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + i);
+    var dStr = dataLocalISO(d);
+    var isHoje       = dStr === hojeStr;
+    var isSelecionado = dStr === estado.dataSelecionada;
+    var temAgend     = estado.agendamentosSemana.some(function(a) { return a.data === dStr; });
+
+    var classes = 'week-day';
+    if (isHoje)                          classes += ' hoje';
+    if (isSelecionado && !isHoje)        classes += ' selecionado';
+    if (temAgend)                        classes += ' tem-agendamento';
+
+    html +=
+      '<button class="' + classes + '" data-date="' + dStr + '" onclick="selecionarDia(\'' + dStr + '\')">' +
+        '<span class="week-day-label">' + DIAS_SEMANA[d.getDay()] + '</span>' +
+        '<span class="week-day-num">' + d.getDate() + '</span>' +
+        '<span class="week-day-dot"></span>' +
+      '</button>';
+  }
+  strip.innerHTML = html;
+}
+
+function selecionarDia(dataStr) {
+  var hojeStr = dataLocalISO(new Date());
+  estado.dataSelecionada = dataStr;
+
+  // Atualiza chips
+  document.getElementById('chip-hoje').classList.toggle('ativo', dataStr === hojeStr);
+  document.getElementById('chip-semana').classList.remove('ativo');
+
+  // Re-renderiza strip (troca destaque)
+  renderizarWeekStrip();
+
+  // Mostra só agendamentos do dia clicado
+  modoAgenda = dataStr === hojeStr ? 'hoje' : 'dia';
+  var agendsDia = estado.agendamentosSemana.filter(function(a) { return a.data === dataStr; });
+  renderizarAgendamentos(agendsDia);
+}
+
+// ─────────────────────────────────────────────
+// ATUALIZAÇÃO AUTOMÁTICA AO VOLTAR PARA O APP
+// ─────────────────────────────────────────────
+var TEMPO_RECARREGAR_MS = 5 * 60 * 1000;
 
 async function recarregarSeNecessario() {
   if (Date.now() - (estado.ultimoCarregamento || 0) < TEMPO_RECARREGAR_MS) return;
 
-  // Atualiza a data exibida no cabeçalho (pode ter virado o dia)
   var hoje = new Date();
   document.getElementById('data-hoje').textContent = hoje.toLocaleDateString('pt-BR', {
     weekday: 'long', day: 'numeric', month: 'long'
@@ -815,7 +1258,6 @@ async function recarregarSeNecessario() {
 
   await carregarDadosIniciais(mes, ano, true);
 
-  // Re-renderiza a aba que está visível no momento
   var abaAtiva = document.querySelector('.aba.ativa');
   if (abaAtiva) {
     var id = abaAtiva.id.replace('aba-', '');
@@ -826,33 +1268,26 @@ async function recarregarSeNecessario() {
   }
 }
 
-// Dispara quando o usuário volta para a aba/app (Android, desktop)
 document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible') recarregarSeNecessario();
 });
-
-// Dispara quando o iOS restaura a página do cache (bfcache)
 window.addEventListener('pageshow', function(e) {
   if (e.persisted) recarregarSeNecessario();
 });
 
-// ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // COMUNICAÇÃO COM O BACKEND (Apps Script)
-// ──────────────────────────────────────────────────────
-
-// chamarBackend: Envia uma requisição POST ao Apps Script e retorna a resposta
+// ─────────────────────────────────────────────
 async function chamarBackend(action, dados) {
   try {
-    var payload = Object.assign({ action: action }, dados || {});
+    var payload  = Object.assign({ action: action }, dados || {});
     var resposta = await fetch(WEB_APP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(payload),
       redirect: 'follow'
     });
-    if (!resposta.ok) {
-      return { erro: 'HTTP ' + resposta.status + ' em ' + action };
-    }
+    if (!resposta.ok) return { erro: 'HTTP ' + resposta.status + ' em ' + action };
     var obj = JSON.parse(await resposta.text());
     if (obj.erro) console.error('[fisio-agenda]', action, obj.erro);
     return obj;
@@ -864,9 +1299,7 @@ async function chamarBackend(action, dados) {
 }
 
 async function carregarDadosIniciais(mes, ano, silencioso) {
-  // ─── FASE 1: Carrega a SEMANA inteira (inclui hoje) ───
-  // Hoje é derivado da semana no frontend — zero chamadas extras ao backend.
-  // Assim "Hoje" e "Semana" ficam disponíveis ao mesmo tempo, após 1 única chamada.
+  // FASE 1: Carrega a SEMANA inteira (inclui hoje) — 1 única chamada
   if (!silencioso) {
     document.getElementById('lista-agendamentos').innerHTML = '<div class="loading">Carregando agenda...</div>';
   }
@@ -876,87 +1309,84 @@ async function carregarDadosIniciais(mes, ano, silencioso) {
     var hojeStr = dataLocalISO(new Date());
     estado.agendamentosSemana = semana;
     estado.semanaCarregada    = true;
-    // Filtra hoje a partir da semana — sem nova chamada ao backend
-    estado.agendamentos = semana.filter(function(a) { return a.data === hojeStr; });
+    estado.agendamentos       = semana.filter(function(a) { return a.data === hojeStr; });
   }
   estado.ultimoCarregamento = Date.now();
+  renderizarWeekStrip();
   renderizarAgendamentos(estado.agendamentos);
 
-  // ─── FASE 2: Clientes, lançamentos e dashboard em paralelo (background) ───
+  // FASE 2: Clientes, lançamentos e dashboard em paralelo (background)
   Promise.all([
     chamarBackend('getClientes'),
     chamarBackend('getLancamentos', { mes: mes, ano: ano }),
     chamarBackend('getDashboard',   { mes: mes, ano: ano })
   ]).then(function(res) {
-    if (Array.isArray(res[0]))  estado.clientes      = res[0];
-    if (Array.isArray(res[1]))  estado.lancamentos   = res[1];
-    if (res[2] && !res[2].erro) estado.dashboardData = res[2];
+    if (Array.isArray(res[0]))   estado.clientes      = res[0];
+    if (Array.isArray(res[1]))   estado.lancamentos   = res[1];
+    if (res[2] && !res[2].erro)  estado.dashboardData = res[2];
   }).catch(function(err) {
     console.warn('[fisio-agenda] Fase 2 parcialmente falhou:', err);
   });
 }
 
-// ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // NAVEGAÇÃO ENTRE ABAS
-// ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 function navegarPara(aba) {
-  // Esconde todas as abas e desativa todos os botões da nav
   document.querySelectorAll('.aba').forEach(function(el) { el.classList.remove('ativa'); });
   document.querySelectorAll('.nav-btn').forEach(function(el) { el.classList.remove('ativo'); });
+  document.querySelectorAll('.fab').forEach(function(el) { el.style.display = 'none'; });
 
-  // Ativa a aba e o botão selecionado
   document.getElementById('aba-' + aba).classList.add('ativa');
   document.getElementById('nav-' + aba).classList.add('ativo');
 
-  // Atualiza o cabeçalho
-  var titulos = { agenda: '📅 Agenda', clientes: '👥 Clientes', financeiro: '💰 Financeiro', dashboard: '📊 Dashboard' };
-  document.getElementById('header-titulo').textContent = titulos[aba];
+  // FAB só aparece nas abas que têm ação de criação
+  var fabEl = document.getElementById('fab-' + aba);
+  if (fabEl) fabEl.style.display = 'flex';
 
-  // Apenas renderiza os dados já em memória — sem chamadas ao servidor
-  if (aba === 'agenda')      renderizarAgendamentos(estado.agendamentos);
-  if (aba === 'clientes')    renderizarClientes(estado.clientes);
-  if (aba === 'financeiro')  renderizarLancamentos(estado.lancamentos);
-  if (aba === 'dashboard')   garantirDashboardCarregado();
+  if (aba === 'agenda')     renderizarAgendamentos(estado.agendamentos);
+  if (aba === 'clientes')   renderizarClientes(estado.clientes);
+  if (aba === 'financeiro') renderizarLancamentos(estado.lancamentos);
+  if (aba === 'dashboard')  garantirDashboardCarregado();
 }
 
 async function garantirDashboardCarregado() {
   if (!estado.dashboardCarregado) {
-    document.getElementById('dash-receita').textContent = 'Carregando...';
-    document.getElementById('dash-despesa').textContent = 'Carregando...';
-    document.getElementById('dash-saldo').textContent = 'Carregando...';
-    var mes = document.getElementById('dash-mes').value;
-    var ano = document.getElementById('dash-ano').value;
+    document.getElementById('dash-receita').textContent = '...';
+    document.getElementById('dash-despesa').textContent = '...';
+    document.getElementById('dash-saldo').textContent   = '...';
+    var mes  = document.getElementById('dash-mes').value;
+    var ano  = document.getElementById('dash-ano').value;
     var dados = await chamarBackend('getDashboard', { mes: mes, ano: ano });
-    if (!dados || dados.erro) {
-      mostrarToast('Não foi possível carregar o dashboard.', true);
-      return;
-    }
-    estado.dashboardData = dados;
+    if (!dados || dados.erro) { mostrarToast('Não foi possível carregar o dashboard.', true); return; }
+    estado.dashboardData      = dados;
     estado.dashboardCarregado = true;
   }
   renderizarDashboardFromEstado();
 }
 
-// ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // MÓDULO: AGENDA
-// ──────────────────────────────────────────────────────
-var modoAgenda = 'hoje'; // 'hoje' ou 'semana'
+// ─────────────────────────────────────────────
+var modoAgenda = 'hoje'; // 'hoje' | 'semana' | 'dia'
 
 function verAgendaHoje() {
   modoAgenda = 'hoje';
-  document.querySelectorAll('.agenda-tab').forEach(function(el, i) {
-    el.classList.toggle('ativo', i === 0);
-  });
-  // Hoje já foi carregado na Fase 1 — renderiza imediatamente
+  var hojeStr = dataLocalISO(new Date());
+  estado.dataSelecionada = hojeStr;
+  document.getElementById('chip-hoje').classList.add('ativo');
+  document.getElementById('chip-semana').classList.remove('ativo');
+  renderizarWeekStrip();
   renderizarAgendamentos(estado.agendamentos);
 }
 
 function verAgendaSemana() {
   modoAgenda = 'semana';
-  document.querySelectorAll('.agenda-tab').forEach(function(el, i) {
-    el.classList.toggle('ativo', i === 1);
-  });
-  // Semana já vem na Fase 1 — sempre instantâneo após o carregamento inicial
+  document.getElementById('chip-hoje').classList.remove('ativo');
+  document.getElementById('chip-semana').classList.add('ativo');
+  // Remove seleção individual do strip
+  estado.dataSelecionada = null;
+  renderizarWeekStrip();
   renderizarAgendamentos(estado.agendamentosSemana);
 }
 
@@ -970,11 +1400,8 @@ async function carregarAgendamentos(forcar) {
   estado.carregandoAgendamentos = true;
   try {
     var filtro = modoAgenda === 'semana' ? { semana: true } : {};
-    var lista = await chamarBackend('getAgendamentos', filtro);
-    if (lista && lista.erro) {
-      mostrarToast(lista.erro || 'Falha ao carregar agenda.', true);
-      return;
-    }
+    var lista  = await chamarBackend('getAgendamentos', filtro);
+    if (lista && lista.erro) { mostrarToast(lista.erro || 'Falha ao carregar agenda.', true); return; }
     if (modoAgenda === 'semana') {
       estado.agendamentosSemana = Array.isArray(lista) ? lista : [];
       estado.semanaCarregada    = true;
@@ -991,41 +1418,65 @@ async function carregarAgendamentos(forcar) {
 function renderizarAgendamentos(lista) {
   var container = document.getElementById('lista-agendamentos');
   if (!lista || lista.length === 0) {
-    container.innerHTML = '<div class="vazio">Nenhum agendamento encontrado.</div>';
+    container.innerHTML = '<div class="vazio"><div class="vazio-icon">📅</div>Nenhum agendamento encontrado.</div>';
     return;
   }
 
-  var html = lista.map(function(a) {
-    var badgeClass = 'badge-' + (a.status || 'agendado');
-    var valor = a.valor ? 'R$ ' + parseFloat(a.valor).toFixed(2) : '';
+  var mostrarData = (modoAgenda === 'semana');
 
-    // Badge e botão de pagamento (só para agendamentos realizados)
-    var badgePagamento = '';
-    var btnPagamento = '';
+  var html = lista.map(function(a) {
+    var partes  = (a.horario || '').split(':');
+    var hora    = partes[0] || '--';
+    var min     = partes[1] || '00';
+
+    var statusLabels = { agendado: 'Agendado', confirmado: 'Confirmado', realizado: 'Realizado', cancelado: 'Cancelado' };
+    var statusLabel  = statusLabels[a.status] || (a.status || 'Agendado');
+    var pillClass    = 'pill pill-' + (a.status || 'agendado');
+
+    // Badge de pagamento (só para realizados)
+    var pagBadge = '', btnPagar = '';
     if (a.status === 'realizado') {
       if (a.pago) {
-        badgePagamento = '<span class="badge badge-pago">✓ pago</span> ';
+        pagBadge = '<div style="margin-top:5px"><span class="pill pill-pago">Pago</span></div>';
       } else {
-        badgePagamento = '<span class="badge badge-pendente">⏳ aguardando pagamento</span> ';
-        btnPagamento = '<button class="btn btn-pagamento btn-sm" onclick="abrirModalPagamento(\'' + a.id + '\')" title="Registrar pagamento">💰</button>';
+        pagBadge = '<div style="margin-top:5px"><span class="pill pill-pendente">Aguardando pagamento</span></div>';
+        btnPagar =
+          '<button class="btn btn-pagamento btn-sm" onclick="abrirModalPagamento(\'' + a.id + '\')" title="Registrar pagamento">' +
+            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Pagar' +
+          '</button>';
       }
     }
 
-    return '<div class="lista-item">' +
-      '<div class="lista-item-info">' +
-        '<div class="lista-item-nome">' + esc(a.clienteNome) + '</div>' +
-        '<div class="lista-item-sub">' + a.horario + ' · ' + (a.tipoAtendimento || 'Fisioterapia') +
-          (a.data && modoAgenda === 'semana' ? ' · ' + formatarData(a.data) : '') +
-          (valor ? ' · ' + valor : '') + '</div>' +
-        '<div style="margin-top:4px">' + badgePagamento +
-          '<span class="badge ' + badgeClass + '">' + (a.status || 'agendado') + '</span></div>' +
-      '</div>' +
-      '<div class="lista-item-acoes">' +
-        btnPagamento +
-        '<button class="btn btn-secundario btn-sm" onclick="editarAgendamento(\'' + a.id + '\')">✏️</button>' +
-        '<button class="btn btn-perigo btn-sm" onclick="deletarAgendamento(\'' + a.id + '\')">🗑</button>' +
-      '</div>' +
-    '</div>';
+    var valorStr = a.valor ? ' · R$ ' + parseFloat(a.valor).toFixed(2) : '';
+    var cardClass = 'appt-card' + (a._sincronizando ? ' _sincronizando' : '');
+
+    return (
+      '<div class="' + cardClass + '">' +
+        '<div class="appt-time">' +
+          '<span class="appt-hour">' + hora + '</span>' +
+          '<span class="appt-min">'  + min  + '</span>' +
+        '</div>' +
+        '<div class="appt-divider"></div>' +
+        '<div class="appt-body">' +
+          '<div class="appt-name">' + esc(a.clienteNome) + '</div>' +
+          '<div class="appt-type">' + esc(a.tipoAtendimento || 'Fisioterapia') + valorStr + '</div>' +
+          (mostrarData ? '<div class="appt-date">' + formatarData(a.data) + '</div>' : '') +
+          pagBadge +
+        '</div>' +
+        '<div class="appt-right">' +
+          '<span class="' + pillClass + '">' + statusLabel + '</span>' +
+          '<div class="appt-actions">' +
+            btnPagar +
+            '<button class="btn btn-secundario btn-sm" onclick="editarAgendamento(\'' + a.id + '\')" title="Editar">' +
+              '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+            '</button>' +
+            '<button class="btn btn-perigo btn-sm" onclick="deletarAgendamento(\'' + a.id + '\')" title="Remover">' +
+              '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>' +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
   }).join('');
 
   container.innerHTML = html;
@@ -1034,41 +1485,37 @@ function renderizarAgendamentos(lista) {
 async function abrirModalAgendamento() {
   limparModal('modal-agendamento', ['age-id','age-data','age-horario','age-obs','age-valor']);
   document.getElementById('modal-agendamento-titulo').textContent = 'Novo Agendamento';
-  document.getElementById('age-status').value = 'agendado';
-  document.getElementById('age-duracao').value = '60';
-  document.getElementById('age-data').value = dataLocalISO(new Date());
-
-  // CORRIGIDO: await garante que a lista de clientes carregue ANTES de abrir o modal
-  // Sem o await, o modal abria com o select vazio e bloqueava o salvamento
+  document.getElementById('age-status').value   = 'agendado';
+  document.getElementById('age-duracao').value  = '60';
+  document.getElementById('age-data').value     = dataLocalISO(new Date());
   await preencherSelectClientes('age-cliente');
-
   abrirModal('modal-agendamento');
 }
 
 async function editarAgendamento(id) {
   var a = estado.agendamentos.find(function(x) { return x.id == id; });
+  if (!a) a = estado.agendamentosSemana.find(function(x) { return x.id == id; });
   if (!a) return;
 
   await preencherSelectClientes('age-cliente');
-
   document.getElementById('modal-agendamento-titulo').textContent = 'Editar Agendamento';
-  document.getElementById('age-id').value = a.id;
-  document.getElementById('age-cliente').value = a.clienteID;
-  document.getElementById('age-data').value = a.data;
-  document.getElementById('age-horario').value = a.horario;
-  document.getElementById('age-duracao').value = a.duracao;
-  document.getElementById('age-tipo').value = a.tipoAtendimento || '';
-  document.getElementById('age-valor').value = a.valor || '';
+  document.getElementById('age-id').value        = a.id;
+  document.getElementById('age-cliente').value   = a.clienteID;
+  document.getElementById('age-data').value      = a.data;
+  document.getElementById('age-horario').value   = a.horario;
+  document.getElementById('age-duracao').value   = a.duracao;
+  document.getElementById('age-tipo').value      = a.tipoAtendimento || '';
+  document.getElementById('age-valor').value     = a.valor || '';
   document.getElementById('age-pagamento').value = a.formaPagamento || '';
-  document.getElementById('age-status').value = a.status || 'agendado';
-  document.getElementById('age-obs').value = a.observacoes || '';
-
+  document.getElementById('age-status').value    = a.status || 'agendado';
+  document.getElementById('age-obs').value       = a.observacoes || '';
   abrirModal('modal-agendamento');
 }
 
 async function salvarAgendamento() {
   var clienteSelect = document.getElementById('age-cliente');
-  var clienteNome = clienteSelect.options[clienteSelect.selectedIndex] ? clienteSelect.options[clienteSelect.selectedIndex].text : '';
+  var clienteNome   = clienteSelect.options[clienteSelect.selectedIndex]
+                        ? clienteSelect.options[clienteSelect.selectedIndex].text : '';
 
   var dados = {
     id:              document.getElementById('age-id').value || null,
@@ -1089,27 +1536,17 @@ async function salvarAgendamento() {
   if (!dados.horario)    { mostrarToast('Informe o horário.', true); return; }
 
   // ── UI OTIMISTA: fecha o modal e atualiza a tela IMEDIATAMENTE ──
-  // O backend processa em background — o usuário não espera os 3s do Apps Script
   fecharModal('modal-agendamento');
 
   var idTemporario = dados.id || ('temp_' + Date.now());
   var agendamentoOtimista = {
-    id:              idTemporario,
-    clienteID:       dados.clienteID,
-    clienteNome:     dados.clienteNome,
-    data:            dados.data,
-    horario:         dados.horario,
-    duracao:         dados.duracao,
-    tipoAtendimento: dados.tipoAtendimento,
-    valor:           dados.valor,
-    formaPagamento:  dados.formaPagamento,
-    status:          dados.status,
-    observacoes:     dados.observacoes,
-    pago:            false,
-    _sincronizando:  true  // flag visual de "aguardando confirmação"
+    id: idTemporario, clienteID: dados.clienteID, clienteNome: dados.clienteNome,
+    data: dados.data, horario: dados.horario, duracao: dados.duracao,
+    tipoAtendimento: dados.tipoAtendimento, valor: dados.valor,
+    formaPagamento: dados.formaPagamento, status: dados.status,
+    observacoes: dados.observacoes, pago: false, _sincronizando: true
   };
 
-  // Atualiza a lista correta (hoje ou semana) com o item otimista
   function atualizarListaOtimista(lista, isNovo) {
     if (isNovo) {
       lista.push(agendamentoOtimista);
@@ -1123,14 +1560,15 @@ async function salvarAgendamento() {
   }
 
   var isNovo = !dados.id;
-  estado.agendamentos      = atualizarListaOtimista(estado.agendamentos, isNovo);
+  estado.agendamentos       = atualizarListaOtimista(estado.agendamentos, isNovo);
   estado.agendamentosSemana = atualizarListaOtimista(estado.agendamentosSemana, isNovo);
 
   var listaAtiva = modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos;
   renderizarAgendamentos(listaAtiva);
+  renderizarWeekStrip();
   mostrarToast(isNovo ? 'Agendamento criado!' : 'Agendamento atualizado!');
 
-  // ── Backend em background ──
+  // Backend em background
   chamarBackend('saveAgendamento', dados).then(function(resultado) {
     if (resultado && resultado.sucesso) {
       function confirmarID(lista) {
@@ -1154,6 +1592,7 @@ async function salvarAgendamento() {
       estado.agendamentosSemana = removerTemp(estado.agendamentosSemana);
       var la = modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos;
       renderizarAgendamentos(la);
+      renderizarWeekStrip();
       mostrarToast((resultado && resultado.erro) || 'Erro ao salvar. Tente novamente.', true);
     }
   });
@@ -1161,12 +1600,13 @@ async function salvarAgendamento() {
 
 function abrirModalPagamento(agendamentoId) {
   var a = estado.agendamentos.find(function(x) { return String(x.id) === String(agendamentoId); });
+  if (!a) a = estado.agendamentosSemana.find(function(x) { return String(x.id) === String(agendamentoId); });
   if (!a) return;
-  document.getElementById('pag-id').value      = a.id;
+  document.getElementById('pag-id').value       = a.id;
   document.getElementById('pag-paciente').value = a.clienteNome;
-  document.getElementById('pag-valor').value   = a.valor || '';
-  document.getElementById('pag-data').value    = dataLocalISO(new Date());
-  document.getElementById('pag-forma').value   = a.formaPagamento || '';
+  document.getElementById('pag-valor').value    = a.valor || '';
+  document.getElementById('pag-data').value     = dataLocalISO(new Date());
+  document.getElementById('pag-forma').value    = a.formaPagamento || '';
   abrirModal('modal-pagamento');
 }
 
@@ -1182,19 +1622,22 @@ async function confirmarPagamento() {
 
   // UI otimista: marca como pago imediatamente
   fecharModal('modal-pagamento');
-  estado.agendamentos = estado.agendamentos.map(function(a) {
-    return String(a.id) === String(dados.agendamentoID) ? Object.assign({}, a, { pago: true }) : a;
-  });
-  renderizarAgendamentos(estado.agendamentos);
+
+  function marcarPago(lista, pago) {
+    return lista.map(function(a) {
+      return String(a.id) === String(dados.agendamentoID) ? Object.assign({}, a, { pago: pago }) : a;
+    });
+  }
+  estado.agendamentos       = marcarPago(estado.agendamentos, true);
+  estado.agendamentosSemana = marcarPago(estado.agendamentosSemana, true);
+  renderizarAgendamentos(modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos);
   mostrarToast('Pagamento registrado!');
 
   chamarBackend('registrarPagamento', dados).then(function(resultado) {
     if (!resultado || !resultado.sucesso) {
-      // Reverte se falhou
-      estado.agendamentos = estado.agendamentos.map(function(a) {
-        return String(a.id) === String(dados.agendamentoID) ? Object.assign({}, a, { pago: false }) : a;
-      });
-      renderizarAgendamentos(estado.agendamentos);
+      estado.agendamentos       = marcarPago(estado.agendamentos, false);
+      estado.agendamentosSemana = marcarPago(estado.agendamentosSemana, false);
+      renderizarAgendamentos(modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos);
       mostrarToast((resultado && resultado.erro) || 'Erro ao registrar pagamento.', true);
     }
   });
@@ -1203,64 +1646,78 @@ async function confirmarPagamento() {
 async function deletarAgendamento(id) {
   if (!confirm('Remover este agendamento?')) return;
 
-  // UI otimista: remove da lista imediatamente
-  var backup = estado.agendamentos.slice();
-  estado.agendamentos = estado.agendamentos.filter(function(a) { return String(a.id) !== String(id); });
-  renderizarAgendamentos(estado.agendamentos);
+  // UI otimista: remove imediatamente
+  var backup       = estado.agendamentos.slice();
+  var backupSemana = estado.agendamentosSemana.slice();
+  estado.agendamentos       = estado.agendamentos.filter(function(a) { return String(a.id) !== String(id); });
+  estado.agendamentosSemana = estado.agendamentosSemana.filter(function(a) { return String(a.id) !== String(id); });
+  renderizarAgendamentos(modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos);
+  renderizarWeekStrip();
   mostrarToast('Agendamento removido!');
 
   chamarBackend('deleteAgendamento', { id: id }).then(function(resultado) {
     if (!resultado || !resultado.sucesso) {
-      // Reverte se falhou
-      estado.agendamentos = backup;
-      renderizarAgendamentos(estado.agendamentos);
+      estado.agendamentos       = backup;
+      estado.agendamentosSemana = backupSemana;
+      renderizarAgendamentos(modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos);
+      renderizarWeekStrip();
       mostrarToast((resultado && resultado.erro) || 'Erro ao remover.', true);
     }
   });
 }
 
-// ──────────────────────────────────────────────────────
-// MÓDULO: CLIENTES
-// ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// MÓDULO: PACIENTES
+// ─────────────────────────────────────────────
 async function carregarClientes(forcar) {
   if (!forcar) { renderizarClientes(estado.clientes); return; }
   document.getElementById('lista-clientes').innerHTML = '<div class="loading">Carregando...</div>';
   var lista = await chamarBackend('getClientes');
-  if (lista && lista.erro) {
-    mostrarToast(lista.erro || 'Erro ao carregar clientes.', true);
-    return;
-  }
+  if (lista && lista.erro) { mostrarToast(lista.erro || 'Erro ao carregar pacientes.', true); return; }
   estado.clientes = Array.isArray(lista) ? lista : [];
   renderizarClientes(estado.clientes);
 }
 
 function buscarClientes() {
-  var filtro = document.getElementById('busca-cliente').value.toLowerCase();
+  var filtro    = document.getElementById('busca-cliente').value.toLowerCase();
   var filtrados = estado.clientes.filter(function(c) {
     return c.nome.toLowerCase().includes(filtro);
   });
   renderizarClientes(filtrados);
 }
 
+function getIniciais(nome) {
+  var partes = (nome || '').trim().split(' ');
+  if (partes.length >= 2) return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+  return (partes[0] || '?')[0].toUpperCase();
+}
+
 function renderizarClientes(lista) {
   var container = document.getElementById('lista-clientes');
   if (!lista || lista.length === 0) {
-    container.innerHTML = '<div class="vazio">Nenhum cliente encontrado.</div>';
+    container.innerHTML = '<div class="vazio"><div class="vazio-icon">👥</div>Nenhum paciente encontrado.</div>';
     return;
   }
 
   var html = lista.map(function(c) {
-    return '<div class="lista-item">' +
-      '<div class="lista-item-info">' +
-        '<div class="lista-item-nome">' + esc(c.nome) + '</div>' +
-        '<div class="lista-item-sub">' + (c.telefone || 'Sem telefone') +
-          (c.email ? ' · ' + esc(c.email) : '') + '</div>' +
-      '</div>' +
-      '<div class="lista-item-acoes">' +
-        '<button class="btn btn-secundario btn-sm" onclick="editarCliente(\'' + c.id + '\')">✏️</button>' +
-        '<button class="btn btn-perigo btn-sm" onclick="deletarCliente(\'' + c.id + '\')">🗑</button>' +
-      '</div>' +
-    '</div>';
+    return (
+      '<div class="patient-card">' +
+        '<div class="avatar-circle">' + esc(getIniciais(c.nome)) + '</div>' +
+        '<div class="patient-info">' +
+          '<div class="patient-name">' + esc(c.nome) + '</div>' +
+          '<div class="patient-sub">' + esc(c.telefone || 'Sem telefone') +
+            (c.email ? ' · ' + esc(c.email) : '') + '</div>' +
+        '</div>' +
+        '<div class="patient-actions">' +
+          '<button class="btn btn-secundario btn-sm" onclick="editarCliente(\'' + c.id + '\')" title="Editar">' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+          '</button>' +
+          '<button class="btn btn-perigo btn-sm" onclick="deletarCliente(\'' + c.id + '\')" title="Remover">' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>' +
+          '</button>' +
+        '</div>' +
+      '</div>'
+    );
   }).join('');
 
   container.innerHTML = html;
@@ -1268,22 +1725,20 @@ function renderizarClientes(lista) {
 
 function abrirModalCliente() {
   limparModal('modal-cliente', ['cli-id','cli-nome','cli-tel','cli-email','cli-nasc','cli-obs']);
-  document.getElementById('modal-cliente-titulo').textContent = 'Novo Cliente';
+  document.getElementById('modal-cliente-titulo').textContent = 'Novo Paciente';
   abrirModal('modal-cliente');
 }
 
 function editarCliente(id) {
   var c = estado.clientes.find(function(x) { return x.id == id; });
   if (!c) return;
-
-  document.getElementById('modal-cliente-titulo').textContent = 'Editar Cliente';
+  document.getElementById('modal-cliente-titulo').textContent = 'Editar Paciente';
   document.getElementById('cli-id').value    = c.id;
   document.getElementById('cli-nome').value  = c.nome;
   document.getElementById('cli-tel').value   = c.telefone || '';
   document.getElementById('cli-email').value = c.email || '';
   document.getElementById('cli-nasc').value  = c.dataNascimento || '';
   document.getElementById('cli-obs').value   = c.observacoes || '';
-
   abrirModal('modal-cliente');
 }
 
@@ -1296,8 +1751,7 @@ async function salvarCliente() {
     dataNascimento: document.getElementById('cli-nasc').value,
     observacoes:    document.getElementById('cli-obs').value.trim()
   };
-
-  if (!dados.nome) { mostrarToast('Informe o nome do cliente.', true); return; }
+  if (!dados.nome) { mostrarToast('Informe o nome do paciente.', true); return; }
 
   var resultado = await chamarBackend('saveCliente', dados);
   if (resultado.sucesso) {
@@ -1310,7 +1764,7 @@ async function salvarCliente() {
 }
 
 async function deletarCliente(id) {
-  if (!confirm('Remover este cliente? Esta ação não pode ser desfeita.')) return;
+  if (!confirm('Remover este paciente? Esta ação não pode ser desfeita.')) return;
   var resultado = await chamarBackend('deleteCliente', { id: id });
   if (resultado.sucesso) {
     mostrarToast(resultado.mensagem);
@@ -1320,12 +1774,12 @@ async function deletarCliente(id) {
   }
 }
 
-// ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // MÓDULO: FINANCEIRO
-// ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 function filtrarPeriodo(periodo, btn) {
   estado.periodoFin = periodo;
-  document.querySelectorAll('.filtro-btn').forEach(function(el) { el.classList.remove('ativo'); });
+  document.querySelectorAll('.periodo-tab').forEach(function(el) { el.classList.remove('ativo'); });
   btn.classList.add('ativo');
   document.getElementById('filtro-livre').style.display = periodo === 'livre' ? 'block' : 'none';
   if (periodo !== 'livre') carregarLancamentos();
@@ -1333,8 +1787,7 @@ function filtrarPeriodo(periodo, btn) {
 
 async function carregarLancamentos() {
   document.getElementById('lista-lancamentos').innerHTML = '<div class="loading">Carregando...</div>';
-
-  var hoje = new Date();
+  var hoje  = new Date();
   var filtro = {};
 
   if (estado.periodoFin === 'mes-atual') {
@@ -1350,10 +1803,7 @@ async function carregarLancamentos() {
   }
 
   var lista = await chamarBackend('getLancamentos', filtro);
-  if (lista && lista.erro) {
-    mostrarToast(lista.erro || 'Erro ao carregar lançamentos.', true);
-    return;
-  }
+  if (lista && lista.erro) { mostrarToast(lista.erro || 'Erro ao carregar lançamentos.', true); return; }
   estado.lancamentos = Array.isArray(lista) ? lista : [];
   renderizarLancamentos(estado.lancamentos);
 }
@@ -1361,7 +1811,7 @@ async function carregarLancamentos() {
 function renderizarLancamentos(lista) {
   var container = document.getElementById('lista-lancamentos');
   if (!lista || lista.length === 0) {
-    container.innerHTML = '<div class="vazio">Nenhum lançamento encontrado.</div>';
+    container.innerHTML = '<div class="vazio"><div class="vazio-icon">💰</div>Nenhum lançamento encontrado.</div>';
     return;
   }
 
@@ -1369,37 +1819,58 @@ function renderizarLancamentos(lista) {
   var totalReceita = 0, totalDespesa = 0;
   lista.forEach(function(l) {
     if (l.tipo === 'receita') totalReceita += parseFloat(l.valor) || 0;
-    else totalDespesa += parseFloat(l.valor) || 0;
+    else                      totalDespesa += parseFloat(l.valor) || 0;
   });
+  var saldo = totalReceita - totalDespesa;
 
-  var resumoHtml = '<div class="card" style="margin-bottom:14px">' +
-    '<div style="display:flex;justify-content:space-around;text-align:center">' +
-    '<div><div style="font-size:.75rem;color:var(--texto-sec)">Receitas</div>' +
-    '<div style="font-weight:700;color:var(--receita)">R$ ' + totalReceita.toFixed(2) + '</div></div>' +
-    '<div><div style="font-size:.75rem;color:var(--texto-sec)">Despesas</div>' +
-    '<div style="font-weight:700;color:var(--despesa)">R$ ' + totalDespesa.toFixed(2) + '</div></div>' +
-    '<div><div style="font-size:.75rem;color:var(--texto-sec)">Saldo</div>' +
-    '<div style="font-weight:700;color:var(--primary-dk)">R$ ' + (totalReceita - totalDespesa).toFixed(2) + '</div></div>' +
-    '</div></div>';
-
-  var itensHtml = lista.map(function(l) {
-    var isReceita = l.tipo === 'receita';
-    return '<div class="lista-item">' +
-      '<div class="lista-item-info">' +
-        '<div class="lista-item-nome">' + esc(l.descricao || l.categoria || l.tipo) + '</div>' +
-        '<div class="lista-item-sub">' + formatarData(l.data) + ' · ' + esc(l.categoria || '') +
-          (l.formaPagamento ? ' · ' + l.formaPagamento : '') + '</div>' +
-        '<span class="badge badge-' + l.tipo + '">' + (isReceita ? '↑ Receita' : '↓ Despesa') + '</span>' +
+  // Summary header
+  var summaryHtml =
+    '<div class="fin-summary-card">' +
+      '<div class="fin-summary-label">Total Recebido</div>' +
+      '<div class="fin-summary-value">R$ ' + totalReceita.toFixed(2) + '</div>' +
+    '</div>' +
+    '<div class="fin-mini-cards">' +
+      '<div class="fin-mini-card">' +
+        '<div class="fin-mini-label">Despesas</div>' +
+        '<div class="fin-mini-value" style="color:var(--despesa)">R$ ' + totalDespesa.toFixed(2) + '</div>' +
       '</div>' +
-      '<div style="text-align:right;margin-left:8px;flex-shrink:0">' +
-        '<div style="font-weight:700;color:' + (isReceita ? 'var(--receita)' : 'var(--despesa)') + '">' +
-          'R$ ' + parseFloat(l.valor).toFixed(2) + '</div>' +
-        '<button class="btn btn-perigo btn-sm" style="margin-top:4px" onclick="deletarLancamento(\'' + l.id + '\')">🗑</button>' +
+      '<div class="fin-mini-card">' +
+        '<div class="fin-mini-label">Saldo</div>' +
+        '<div class="fin-mini-value" style="color:' + (saldo >= 0 ? 'var(--receita)' : 'var(--despesa)') + '">R$ ' + saldo.toFixed(2) + '</div>' +
       '</div>' +
     '</div>';
-  }).join('');
 
-  container.innerHTML = resumoHtml + itensHtml;
+  // Transações
+  var rowsSvg = {
+    receita: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>',
+    despesa: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>'
+  };
+  var transacoesHtml =
+    '<div class="card" style="margin-bottom:0">' +
+      '<div class="card-titulo">Transações recentes</div>' +
+      lista.map(function(l) {
+        return (
+          '<div class="transaction-row">' +
+            '<div class="tx-icon ' + l.tipo + '">' + rowsSvg[l.tipo] + '</div>' +
+            '<div class="tx-body">' +
+              '<div class="tx-desc">' + esc(l.descricao || l.categoria || l.tipo) + '</div>' +
+              '<div class="tx-meta">' + formatarData(l.data) +
+                (l.categoria ? ' · ' + esc(l.categoria) : '') +
+                (l.formaPagamento ? ' · ' + l.formaPagamento : '') + '</div>' +
+            '</div>' +
+            '<div class="tx-value ' + l.tipo + '">R$ ' + parseFloat(l.valor).toFixed(2) + '</div>' +
+            '<div class="tx-actions">' +
+              '<button class="btn btn-perigo btn-sm" onclick="deletarLancamento(\'' + l.id + '\')" title="Remover">' +
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>' +
+              '</button>' +
+            '</div>' +
+          '</div>'
+        );
+      }).join('') +
+    '</div>' +
+    '<div class="spacer"></div>';
+
+  container.innerHTML = summaryHtml + transacoesHtml;
 }
 
 function abrirModalLancamento() {
@@ -1411,7 +1882,7 @@ function abrirModalLancamento() {
 }
 
 function atualizarCategorias() {
-  var tipo = document.getElementById('lan-tipo').value;
+  var tipo   = document.getElementById('lan-tipo').value;
   var select = document.getElementById('lan-categoria');
   select.innerHTML = CATEGORIAS[tipo].map(function(cat) {
     return '<option value="' + cat + '">' + cat + '</option>';
@@ -1427,7 +1898,6 @@ async function salvarLancamento() {
     formaPagamento: document.getElementById('lan-pagamento').value,
     categoria:      document.getElementById('lan-categoria').value
   };
-
   if (!dados.valor) { mostrarToast('Informe o valor.', true); return; }
   if (!dados.data)  { mostrarToast('Informe a data.', true); return; }
 
@@ -1452,19 +1922,16 @@ async function deletarLancamento(id) {
   }
 }
 
-// ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // MÓDULO: DASHBOARD
-// ──────────────────────────────────────────────────────
-
-// Renderiza o dashboard usando os dados já em memória (sem chamada ao servidor)
+// ─────────────────────────────────────────────
 function renderizarDashboardFromEstado() {
   var dados = estado.dashboardData;
   if (!dados) {
-    // Sem dados ainda (raro — só se o carregamento inicial falhou)
-    document.getElementById('dash-receita').textContent     = 'R$ 0,00';
-    document.getElementById('dash-despesa').textContent     = 'R$ 0,00';
-    document.getElementById('dash-saldo').textContent       = 'R$ 0,00';
-    document.getElementById('dash-atendimentos').textContent = '0 atend.';
+    document.getElementById('dash-receita').textContent      = 'R$ 0,00';
+    document.getElementById('dash-despesa').textContent      = 'R$ 0,00';
+    document.getElementById('dash-saldo').textContent        = 'R$ 0,00';
+    document.getElementById('dash-atendimentos').textContent = '0';
     return;
   }
   var r = dados.resumo;
@@ -1472,27 +1939,26 @@ function renderizarDashboardFromEstado() {
     document.getElementById('dash-receita').textContent      = 'R$ ' + parseFloat(r.receitaTotal).toFixed(2);
     document.getElementById('dash-despesa').textContent      = 'R$ ' + parseFloat(r.despesaTotal).toFixed(2);
     document.getElementById('dash-saldo').textContent        = 'R$ ' + parseFloat(r.saldo).toFixed(2);
-    document.getElementById('dash-atendimentos').textContent = r.totalAtendimentos + ' atend.';
+    document.getElementById('dash-atendimentos').textContent = r.totalAtendimentos;
   }
   if (dados.grafico    && dados.grafico.length)    renderizarGraficoBarras(dados.grafico);
   if (dados.categorias && dados.categorias.length) renderizarGraficoPizza(dados.categorias);
 }
 
-// Recarrega o dashboard do servidor (chamado ao mudar mês/ano no seletor)
 async function carregarDashboard() {
   var mes = document.getElementById('dash-mes').value;
   var ano = document.getElementById('dash-ano').value;
+  document.getElementById('dash-periodo-label').textContent = MESES_NOMES[mes - 1] + ' ' + ano;
+
   var dados = await chamarBackend('getDashboard', { mes: mes, ano: ano });
   if (!dados || dados.erro) return;
-  estado.dashboardData = dados;
+  estado.dashboardData      = dados;
   estado.dashboardCarregado = true;
   renderizarDashboardFromEstado();
 }
 
 function renderizarGraficoBarras(dados) {
   var ctx = document.getElementById('grafico-barras').getContext('2d');
-
-  // Destrói o gráfico anterior se existir
   if (estado.graficoBarras) estado.graficoBarras.destroy();
 
   estado.graficoBarras = new Chart(ctx, {
@@ -1503,16 +1969,16 @@ function renderizarGraficoBarras(dados) {
         {
           label: 'Receitas',
           data: dados.map(function(d) { return d.receita; }),
-          backgroundColor: 'rgba(91,191,140,0.7)',
-          borderColor: '#5bbf8c',
+          backgroundColor: 'rgba(22,163,74,.75)',
+          borderColor: '#16a34a',
           borderWidth: 1,
           borderRadius: 4
         },
         {
           label: 'Despesas',
           data: dados.map(function(d) { return d.despesa; }),
-          backgroundColor: 'rgba(224,117,117,0.7)',
-          borderColor: '#e07575',
+          backgroundColor: 'rgba(220,38,38,.6)',
+          borderColor: '#dc2626',
           borderWidth: 1,
           borderRadius: 4
         }
@@ -1521,7 +1987,9 @@ function renderizarGraficoBarras(dados) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11, family: 'Inter' } } }
+      },
       scales: {
         y: { ticks: { callback: function(v) { return 'R$' + v.toFixed(0); }, font: { size: 10 } } },
         x: { ticks: { font: { size: 10 } } }
@@ -1534,7 +2002,7 @@ function renderizarGraficoPizza(categorias) {
   var ctx = document.getElementById('grafico-pizza').getContext('2d');
   if (estado.graficoPizza) estado.graficoPizza.destroy();
 
-  var cores = ['#6db8b8','#b8a0d8','#f4a261','#e07575','#5bbf8c','#74c0fc','#ffd43b','#a9e34b','#f783ac','#66d9e8','#e8a87c'];
+  var cores = ['#0ea5e9','#006591','#6366f1','#f59e0b','#ef4444','#10b981','#8b5cf6','#f97316','#06b6d4','#ec4899'];
 
   estado.graficoPizza = new Chart(ctx, {
     type: 'doughnut',
@@ -1551,34 +2019,21 @@ function renderizarGraficoPizza(categorias) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 8 } },
+        legend: { position: 'bottom', labels: { font: { size: 10, family: 'Inter' }, padding: 8 } },
         tooltip: {
-          callbacks: {
-            label: function(ctx) {
-              return ' R$ ' + parseFloat(ctx.raw).toFixed(2);
-            }
-          }
+          callbacks: { label: function(ctx) { return ' R$ ' + parseFloat(ctx.raw).toFixed(2); } }
         }
       }
     }
   });
 }
 
-// ──────────────────────────────────────────────────────
-// FUNÇÕES AUXILIARES DO FRONTEND
-// ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// FUNÇÕES AUXILIARES
+// ─────────────────────────────────────────────
+function abrirModal(id)  { document.getElementById(id).classList.add('aberto'); }
+function fecharModal(id) { document.getElementById(id).classList.remove('aberto'); }
 
-// Abre um modal pelo ID
-function abrirModal(id) {
-  document.getElementById(id).classList.add('aberto');
-}
-
-// Fecha um modal pelo ID
-function fecharModal(id) {
-  document.getElementById(id).classList.remove('aberto');
-}
-
-// Limpa os campos de um modal (evita dados do formulário anterior)
 function limparModal(modalId, camposIds) {
   camposIds.forEach(function(id) {
     var el = document.getElementById(id);
@@ -1586,7 +2041,6 @@ function limparModal(modalId, camposIds) {
   });
 }
 
-// Preenche o select de clientes com os dados em memória ou busca no backend
 async function preencherSelectClientes(selectId) {
   if (!estado.clientes || estado.clientes.length === 0) {
     var clientes = await chamarBackend('getClientes');
@@ -1597,7 +2051,7 @@ async function preencherSelectClientes(selectId) {
       estado.clientes = Array.isArray(clientes) ? clientes : [];
     }
   }
-  var select = document.getElementById(selectId);
+  var select     = document.getElementById(selectId);
   var valorAtual = select.value;
   select.innerHTML = '<option value="">Selecione o paciente...</option>' +
     estado.clientes.map(function(c) {
@@ -1606,42 +2060,42 @@ async function preencherSelectClientes(selectId) {
   if (valorAtual) select.value = valorAtual;
 }
 
-// Formata uma data 'YYYY-MM-DD' para 'DD/MM'
+// Formata 'YYYY-MM-DD' → 'DD/MM'
 function formatarData(dataStr) {
   if (!dataStr) return '';
-  var partes = dataStr.split('-');
-  return partes[2] + '/' + partes[1];
+  var p = dataStr.split('-');
+  return p[2] + '/' + p[1];
 }
 
-// Retorna data local no formato YYYY-MM-DD sem deslocamento UTC
+// Data local no formato YYYY-MM-DD sem deslocamento UTC
 function dataLocalISO(data) {
-  var d = data instanceof Date ? data : new Date(data);
+  var d   = data instanceof Date ? data : new Date(data);
   var ano = d.getFullYear();
   var mes = String(d.getMonth() + 1).padStart(2, '0');
   var dia = String(d.getDate()).padStart(2, '0');
   return ano + '-' + mes + '-' + dia;
 }
 
-// Exibe um toast de notificação temporário
+// Toast de notificação
 function mostrarToast(mensagem, erro) {
   var toast = document.getElementById('toast');
   toast.textContent = mensagem;
-  toast.style.background = erro ? '#c0392b' : '#333';
+  toast.style.background = erro ? '#dc2626' : '#171c20';
   toast.classList.add('visivel');
-  setTimeout(function() { toast.classList.remove('visivel'); }, 3000);
+  setTimeout(function() { toast.classList.remove('visivel'); }, 3500);
 }
 
-// Escapa HTML para evitar XSS ao exibir dados do usuário na tela
+// Escapa HTML para evitar XSS
 function esc(str) {
-  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// Fecha o modal ao clicar no overlay (fundo escuro)
+// Fecha modal ao clicar no overlay
 document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
   overlay.addEventListener('click', function(e) {
-    if (e.target === overlay) {
-      overlay.classList.remove('aberto');
-    }
+    if (e.target === overlay) overlay.classList.remove('aberto');
   });
 });
 </script>
