@@ -775,6 +775,56 @@
     }
     .vazio-icon { font-size: 2rem; margin-bottom: 8px; opacity: .4; }
 
+    /* ── Skeleton shimmer ── */
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .skeleton-line {
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--surface-low) 25%, var(--border) 50%, var(--surface-low) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+    }
+    .skeleton-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 8px;
+    }
+    .sk-time  { width: 34px; flex-shrink: 0; }
+    .sk-h     { height: 18px; }
+    .sk-sm    { height: 12px; }
+    .sk-div   { width: 1px; height: 38px; background: var(--border); flex-shrink: 0; }
+    .sk-body  { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .sk-pill  { width: 72px; height: 20px; border-radius: 999px; }
+
+    /* ── Indicador de atualização silenciosa ── */
+    .refresh-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      color: var(--outline);
+      padding: 0 2px 10px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .refresh-bar.visivel { opacity: 1; }
+    .refresh-spinner {
+      width: 12px; height: 12px;
+      border: 2px solid var(--outline-v);
+      border-top-color: var(--primary-light);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     /* ══════════════════════════════════════════════
        MISC
     ══════════════════════════════════════════════ */
@@ -807,6 +857,11 @@
   <div class="filter-chips">
     <button class="filter-chip ativo" id="chip-hoje" onclick="verAgendaHoje()">Hoje</button>
     <button class="filter-chip" id="chip-semana" onclick="verAgendaSemana()">Esta semana</button>
+  </div>
+
+  <div class="refresh-bar" id="refresh-bar">
+    <div class="refresh-spinner"></div>
+    Atualizando agenda...
   </div>
 
   <div id="lista-agendamentos"><div class="loading">Carregando agenda...</div></div>
@@ -1206,6 +1261,47 @@ var DIAS_SEMANA  = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
 var MESES_NOMES  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                     'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
+// ─────────────────────────────────────────────
+// CACHE LOCAL (localStorage) — stale-while-revalidate
+// Na 2ª visita em diante: mostra dados do cache instantaneamente
+// enquanto busca dados frescos em background
+// ─────────────────────────────────────────────
+var LS_KEY = 'fisio_v1';
+
+function salvarCacheLocal(patch) {
+  try {
+    var atual = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    localStorage.setItem(LS_KEY, JSON.stringify(Object.assign(atual, patch, { ts: Date.now() })));
+  } catch(e) {}
+}
+
+function lerCacheLocal() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch(e) { return null; }
+}
+
+// ─────────────────────────────────────────────
+// SKELETON — 3 cards animados enquanto carrega
+// ─────────────────────────────────────────────
+function renderizarSkeleton(n) {
+  var card =
+    '<div class="skeleton-card">' +
+      '<div class="sk-time"><div class="skeleton-line sk-h" style="width:28px;margin-bottom:6px"></div>' +
+                           '<div class="skeleton-line sk-sm" style="width:20px"></div></div>' +
+      '<div class="sk-div"></div>' +
+      '<div class="sk-body">' +
+        '<div class="skeleton-line sk-h" style="width:60%"></div>' +
+        '<div class="skeleton-line sk-sm" style="width:40%"></div>' +
+      '</div>' +
+      '<div class="sk-pill skeleton-line"></div>' +
+    '</div>';
+  return Array(n).fill(card).join('');
+}
+
+function mostrarRefreshBar(visivel) {
+  var bar = document.getElementById('refresh-bar');
+  if (bar) bar.classList.toggle('visivel', visivel);
+}
+
 // Estado global — todos os dados ficam aqui após o carregamento inicial
 var estado = {
   clientes:             [],
@@ -1353,31 +1449,48 @@ async function chamarBackend(action, dados) {
 }
 
 async function carregarDadosIniciais(mes, ano, silencioso) {
-  // FASE 1: Carrega a SEMANA inteira (inclui hoje) — 1 única chamada
-  if (!silencioso) {
-    document.getElementById('lista-agendamentos').innerHTML = '<div class="loading">Carregando agenda...</div>';
+  var hojeStr = dataLocalISO(new Date());
+
+  // -- FASE 0: Cache local -- exibe dados instantaneamente (0 ms) ----------
+  var cache = lerCacheLocal();
+  var temCache = cache && Array.isArray(cache.semana) && cache.semana.length > 0;
+
+  if (temCache) {
+    estado.agendamentosSemana = cache.semana;
+    estado.semanaCarregada    = true;
+    estado.agendamentos       = cache.semana.filter(function(a) { return a.data === hojeStr; });
+    if (Array.isArray(cache.clientes)) estado.clientes = cache.clientes;
+    renderizarWeekStrip();
+    renderizarAgendamentos(getListaAtiva());
+    if (!silencioso) mostrarRefreshBar(true);
+  } else if (!silencioso) {
+    // Primeira visita: skeleton animado enquanto aguarda o backend
+    document.getElementById('lista-agendamentos').innerHTML = renderizarSkeleton(3);
   }
 
+  // -- FASE 1: Dados frescos do backend ------------------------------------
   var semana = await chamarBackend('getAgendamentos', { semana: true });
+  mostrarRefreshBar(false);
+
   if (Array.isArray(semana)) {
-    var hojeStr = dataLocalISO(new Date());
     estado.agendamentosSemana = semana;
     estado.semanaCarregada    = true;
     estado.agendamentos       = semana.filter(function(a) { return a.data === hojeStr; });
+    salvarCacheLocal({ semana: semana });
+    renderizarWeekStrip();
+    renderizarAgendamentos(getListaAtiva());
   }
   estado.ultimoCarregamento = Date.now();
-  renderizarWeekStrip();
-  renderizarAgendamentos(estado.agendamentos);
 
-  // FASE 2: Clientes, lançamentos e dashboard em paralelo (background)
+  // -- FASE 2: Clientes, lancamentos e dashboard em paralelo (background) --
   Promise.all([
     chamarBackend('getClientes'),
     chamarBackend('getLancamentos', { mes: mes, ano: ano }),
     chamarBackend('getDashboard',   { mes: mes, ano: ano })
   ]).then(function(res) {
-    if (Array.isArray(res[0]))   estado.clientes      = res[0];
-    if (Array.isArray(res[1]))   estado.lancamentos   = res[1];
-    if (res[2] && !res[2].erro)  estado.dashboardData = res[2];
+    if (Array.isArray(res[0]))  { estado.clientes      = res[0]; salvarCacheLocal({ clientes: res[0] }); }
+    if (Array.isArray(res[1]))    estado.lancamentos   = res[1];
+    if (res[2] && !res[2].erro)   estado.dashboardData = res[2];
   }).catch(function(err) {
     console.warn('[fisio-agenda] Fase 2 parcialmente falhou:', err);
   });
