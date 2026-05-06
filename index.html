@@ -864,34 +864,33 @@ async function chamarBackend(action, dados) {
 }
 
 async function carregarDadosIniciais(mes, ano, silencioso) {
-  // ─── FASE 1: Agenda (prioridade máxima — mostra resultado em ~3-5s) ───
-  // O usuário vê a agenda do dia imediatamente, sem esperar clientes/financeiro/dashboard
+  // ─── FASE 1: Carrega a SEMANA inteira (inclui hoje) ───
+  // Hoje é derivado da semana no frontend — zero chamadas extras ao backend.
+  // Assim "Hoje" e "Semana" ficam disponíveis ao mesmo tempo, após 1 única chamada.
   if (!silencioso) {
     document.getElementById('lista-agendamentos').innerHTML = '<div class="loading">Carregando agenda...</div>';
   }
 
-  var agendamentos = await chamarBackend('getAgendamentos', {});
-  estado.agendamentos = Array.isArray(agendamentos) ? agendamentos : estado.agendamentos;
+  var semana = await chamarBackend('getAgendamentos', { semana: true });
+  if (Array.isArray(semana)) {
+    var hojeStr = dataLocalISO(new Date());
+    estado.agendamentosSemana = semana;
+    estado.semanaCarregada    = true;
+    // Filtra hoje a partir da semana — sem nova chamada ao backend
+    estado.agendamentos = semana.filter(function(a) { return a.data === hojeStr; });
+  }
   estado.ultimoCarregamento = Date.now();
   renderizarAgendamentos(estado.agendamentos);
 
-  // ─── FASE 2: Resto em paralelo (background — não bloqueia a tela) ───
-  // Semana, clientes, lançamentos e dashboard carregam enquanto o usuário já usa a agenda
+  // ─── FASE 2: Clientes, lançamentos e dashboard em paralelo (background) ───
   Promise.all([
-    chamarBackend('getAgendamentos', { semana: true }),
     chamarBackend('getClientes'),
     chamarBackend('getLancamentos', { mes: mes, ano: ano }),
     chamarBackend('getDashboard',   { mes: mes, ano: ano })
   ]).then(function(res) {
-    if (Array.isArray(res[0])) {
-      estado.agendamentosSemana = res[0];
-      estado.semanaCarregada    = true;
-      // Se o usuário já estiver na aba semana, atualiza a tela
-      if (modoAgenda === 'semana') renderizarAgendamentos(estado.agendamentosSemana);
-    }
-    if (Array.isArray(res[1]))       estado.clientes      = res[1];
-    if (Array.isArray(res[2]))       estado.lancamentos   = res[2];
-    if (res[3] && !res[3].erro)      estado.dashboardData = res[3];
+    if (Array.isArray(res[0]))  estado.clientes      = res[0];
+    if (Array.isArray(res[1]))  estado.lancamentos   = res[1];
+    if (res[2] && !res[2].erro) estado.dashboardData = res[2];
   }).catch(function(err) {
     console.warn('[fisio-agenda] Fase 2 parcialmente falhou:', err);
   });
@@ -957,26 +956,8 @@ function verAgendaSemana() {
   document.querySelectorAll('.agenda-tab').forEach(function(el, i) {
     el.classList.toggle('ativo', i === 1);
   });
-  if (estado.semanaCarregada) {
-    // Fase 2 já completou — renderiza instantâneo
-    renderizarAgendamentos(estado.agendamentosSemana);
-  } else {
-    // Fase 2 ainda em andamento — mostra loading e aguarda
-    document.getElementById('lista-agendamentos').innerHTML = '<div class="loading">Carregando semana...</div>';
-    var intervalo = setInterval(function() {
-      if (estado.semanaCarregada) {
-        clearInterval(intervalo);
-        if (modoAgenda === 'semana') renderizarAgendamentos(estado.agendamentosSemana);
-      }
-    }, 300);
-    // Timeout de segurança: se Fase 2 demorar >10s, busca direto
-    setTimeout(function() {
-      clearInterval(intervalo);
-      if (!estado.semanaCarregada && modoAgenda === 'semana') {
-        carregarAgendamentos(true);
-      }
-    }, 10000);
-  }
+  // Semana já vem na Fase 1 — sempre instantâneo após o carregamento inicial
+  renderizarAgendamentos(estado.agendamentosSemana);
 }
 
 async function carregarAgendamentos(forcar) {
