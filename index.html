@@ -1315,7 +1315,7 @@ async function recarregarSeNecessario() {
   var abaAtiva = document.querySelector('.aba.ativa');
   if (abaAtiva) {
     var id = abaAtiva.id.replace('aba-', '');
-    if (id === 'agenda')     renderizarAgendamentos(estado.agendamentos);
+    if (id === 'agenda')     renderizarAgendamentos(getListaAtiva());
     if (id === 'clientes')   renderizarClientes(estado.clientes);
     if (id === 'financeiro') renderizarLancamentos(estado.lancamentos);
     if (id === 'dashboard')  renderizarDashboardFromEstado();
@@ -1398,7 +1398,7 @@ function navegarPara(aba) {
   var fabEl = document.getElementById('fab-' + aba);
   if (fabEl) fabEl.style.display = 'flex';
 
-  if (aba === 'agenda')     renderizarAgendamentos(estado.agendamentos);
+  if (aba === 'agenda')     renderizarAgendamentos(getListaAtiva());
   if (aba === 'clientes')   renderizarClientes(estado.clientes);
   if (aba === 'financeiro') renderizarLancamentos(estado.lancamentos);
   if (aba === 'dashboard')  garantirDashboardCarregado();
@@ -1447,7 +1447,7 @@ function verAgendaSemana() {
 async function carregarAgendamentos(forcar) {
   if (estado.carregandoAgendamentos) return;
   if (!forcar) {
-    var lista = modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos;
+    var lista = getListaAtiva();
     renderizarAgendamentos(lista);
     return;
   }
@@ -1554,32 +1554,27 @@ function renderizarAgendamentos(lista) {
 // ─────────────────────────────────────────────
 // SWIPE TO DELETE + DOUBLE TAP TO EDIT
 // ─────────────────────────────────────────────
+// Retorna a lista correta para o modo atual da agenda
+// modoAgenda: 'hoje' | 'semana' | 'dia' (dia específico clicado no strip)
+function getListaAtiva() {
+  if (modoAgenda === 'semana') return estado.agendamentosSemana;
+  if (modoAgenda === 'dia')    return estado.agendamentosSemana.filter(function(a) { return a.data === estado.dataSelecionada; });
+  return estado.agendamentos; // 'hoje'
+}
+
 function inicializarSwipe() {
   var THRESHOLD_DELETE = 90;  // px para confirmar exclusão
   var THRESHOLD_MOVE   = 8;   // px mínimo horizontal para considerar swipe (vs. scroll)
   var DOUBLE_TAP_MS    = 320; // intervalo máximo entre dois toques (ms)
 
   document.querySelectorAll('.appt-swipe-wrapper').forEach(function(wrapper) {
-    var card    = wrapper.querySelector('.appt-card');
-    var bg      = wrapper.querySelector('.appt-delete-bg');
-    var id      = wrapper.dataset.id;
+    var card = wrapper.querySelector('.appt-card');
+    var bg   = wrapper.querySelector('.appt-delete-bg');
+    var id   = wrapper.dataset.id;
 
     var startX = 0, startY = 0;
     var isDragging = false, isDecided = false;
     var lastTap = 0;
-
-    // ── Duplo toque → editar ──────────────────
-    wrapper.addEventListener('touchend', function(e) {
-      if (isDragging) return; // swipe em andamento, ignora toque
-      var now = Date.now();
-      if (now - lastTap < DOUBLE_TAP_MS) {
-        e.preventDefault();
-        editarAgendamento(id);
-        lastTap = 0;
-      } else {
-        lastTap = now;
-      }
-    });
 
     // ── Início do toque ──────────────────────
     card.addEventListener('touchstart', function(e) {
@@ -1595,48 +1590,56 @@ function inicializarSwipe() {
       var dx = e.touches[0].clientX - startX;
       var dy = e.touches[0].clientY - startY;
 
-      // Decide direção apenas uma vez por gesto
       if (!isDecided) {
         if (Math.abs(dx) < THRESHOLD_MOVE && Math.abs(dy) < THRESHOLD_MOVE) return;
         isDecided = true;
-        // Se mais vertical do que horizontal → deixa o scroll acontecer
-        if (Math.abs(dy) > Math.abs(dx)) { isDragging = false; return; }
+        if (Math.abs(dy) > Math.abs(dx)) { isDragging = false; return; } // scroll vertical
         isDragging = true;
       }
       if (!isDragging) return;
       if (dx > 0) { card.style.transform = 'translateX(0)'; return; } // ignora direita
 
-      var translate = Math.max(dx, -130); // limita em -130px
+      var translate = Math.max(dx, -130);
       card.style.transform = 'translateX(' + translate + 'px)';
-
-      // Fundo vermelho cresce com o progresso
-      var progress = Math.min(Math.abs(translate) / THRESHOLD_DELETE, 1);
-      bg.style.opacity = progress;
+      bg.style.opacity = Math.min(Math.abs(translate) / THRESHOLD_DELETE, 1);
     }, { passive: true });
 
-    // ── Fim do toque ─────────────────────────
+    // ── Fim do toque — swipe E duplo toque no mesmo handler ──
+    // Manter tudo em um closure evita a interferência entre os dois gestos.
     card.addEventListener('touchend', function(e) {
-      if (!isDragging) return;
+      var wasDragging = isDragging;
       isDragging = false;
 
-      var dx = e.changedTouches[0].clientX - startX;
-      card.style.transition = 'transform 0.25s cubic-bezier(.25,.46,.45,.94)';
+      if (wasDragging) {
+        // ── Era um swipe — processa exclusão ──
+        var dx = e.changedTouches[0].clientX - startX;
+        card.style.transition = 'transform 0.25s cubic-bezier(.25,.46,.45,.94)';
 
-      if (dx < -THRESHOLD_DELETE) {
-        // Passou do threshold — desliza para fora e exclui
-        card.style.transform = 'translateX(-110%)';
-        bg.style.opacity     = '1';
-        setTimeout(function() { deletarAgendamentoOtimista(id); }, 220);
+        if (dx < -THRESHOLD_DELETE) {
+          card.style.transform = 'translateX(-110%)';
+          bg.style.opacity     = '1';
+          setTimeout(function() { deletarAgendamentoOtimista(id); }, 220);
+        } else {
+          card.style.transform = 'translateX(0)';
+          bg.style.opacity     = '0';
+        }
+        lastTap = 0; // reseta duplo toque após swipe
       } else {
-        // Não passou — volta ao lugar
-        card.style.transform = 'translateX(0)';
-        bg.style.opacity     = '0';
+        // ── Era um toque — verifica duplo toque para editar ──
+        var now = Date.now();
+        if (now - lastTap < DOUBLE_TAP_MS && lastTap > 0) {
+          e.preventDefault();
+          editarAgendamento(id);
+          lastTap = 0;
+        } else {
+          lastTap = now;
+        }
       }
-    }, { passive: true });
+    }, { passive: false });
   });
 }
 
-// Exclui sem confirm() — o gesto de swipe é a confirmação intencional
+// Exclui sem confirm() — o swipe é a confirmação intencional
 function deletarAgendamentoOtimista(id) {
   var backup       = estado.agendamentos.slice();
   var backupSemana = estado.agendamentosSemana.slice();
@@ -1644,7 +1647,7 @@ function deletarAgendamentoOtimista(id) {
   estado.agendamentos       = estado.agendamentos.filter(function(a) { return String(a.id) !== String(id); });
   estado.agendamentosSemana = estado.agendamentosSemana.filter(function(a) { return String(a.id) !== String(id); });
 
-  renderizarAgendamentos(modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos);
+  renderizarAgendamentos(getListaAtiva());
   renderizarWeekStrip();
   mostrarToast('Agendamento excluído');
 
@@ -1652,7 +1655,7 @@ function deletarAgendamentoOtimista(id) {
     if (!resultado || !resultado.sucesso) {
       estado.agendamentos       = backup;
       estado.agendamentosSemana = backupSemana;
-      renderizarAgendamentos(modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos);
+      renderizarAgendamentos(getListaAtiva());
       renderizarWeekStrip();
       mostrarToast((resultado && resultado.erro) || 'Erro ao excluir. Tente novamente.', true);
     }
@@ -1740,7 +1743,7 @@ async function salvarAgendamento() {
   estado.agendamentos       = atualizarListaOtimista(estado.agendamentos, isNovo);
   estado.agendamentosSemana = atualizarListaOtimista(estado.agendamentosSemana, isNovo);
 
-  var listaAtiva = modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos;
+  var listaAtiva = getListaAtiva();
   renderizarAgendamentos(listaAtiva);
   renderizarWeekStrip();
   mostrarToast(isNovo ? 'Agendamento criado!' : 'Agendamento atualizado!');
@@ -1759,7 +1762,7 @@ async function salvarAgendamento() {
       }
       estado.agendamentos       = confirmarID(estado.agendamentos);
       estado.agendamentosSemana = confirmarID(estado.agendamentosSemana);
-      var la = modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos;
+      var la = getListaAtiva();
       renderizarAgendamentos(la);
     } else {
       function removerTemp(lista) {
@@ -1767,7 +1770,7 @@ async function salvarAgendamento() {
       }
       estado.agendamentos       = removerTemp(estado.agendamentos);
       estado.agendamentosSemana = removerTemp(estado.agendamentosSemana);
-      var la = modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos;
+      var la = getListaAtiva();
       renderizarAgendamentos(la);
       renderizarWeekStrip();
       mostrarToast((resultado && resultado.erro) || 'Erro ao salvar. Tente novamente.', true);
@@ -1807,14 +1810,14 @@ async function confirmarPagamento() {
   }
   estado.agendamentos       = marcarPago(estado.agendamentos, true);
   estado.agendamentosSemana = marcarPago(estado.agendamentosSemana, true);
-  renderizarAgendamentos(modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos);
+  renderizarAgendamentos(getListaAtiva());
   mostrarToast('Pagamento registrado!');
 
   chamarBackend('registrarPagamento', dados).then(function(resultado) {
     if (!resultado || !resultado.sucesso) {
       estado.agendamentos       = marcarPago(estado.agendamentos, false);
       estado.agendamentosSemana = marcarPago(estado.agendamentosSemana, false);
-      renderizarAgendamentos(modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos);
+      renderizarAgendamentos(getListaAtiva());
       mostrarToast((resultado && resultado.erro) || 'Erro ao registrar pagamento.', true);
     }
   });
@@ -1828,7 +1831,7 @@ async function deletarAgendamento(id) {
   var backupSemana = estado.agendamentosSemana.slice();
   estado.agendamentos       = estado.agendamentos.filter(function(a) { return String(a.id) !== String(id); });
   estado.agendamentosSemana = estado.agendamentosSemana.filter(function(a) { return String(a.id) !== String(id); });
-  renderizarAgendamentos(modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos);
+  renderizarAgendamentos(getListaAtiva());
   renderizarWeekStrip();
   mostrarToast('Agendamento removido!');
 
@@ -1836,7 +1839,7 @@ async function deletarAgendamento(id) {
     if (!resultado || !resultado.sucesso) {
       estado.agendamentos       = backup;
       estado.agendamentosSemana = backupSemana;
-      renderizarAgendamentos(modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos);
+      renderizarAgendamentos(getListaAtiva());
       renderizarWeekStrip();
       mostrarToast((resultado && resultado.erro) || 'Erro ao remover.', true);
     }
