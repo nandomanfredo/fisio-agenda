@@ -15,7 +15,9 @@ function getAgendamentos(filtros) {
 
   // Prioridade: se passou uma data específica, usa ela
   if (filtros.data) {
-    return getAgendamentosPorData(filtros.data);
+    var dataFiltro = normalizarDataISO(filtros.data);
+    if (!dataFiltro) return [];
+    return getAgendamentosPorData(dataFiltro);
   }
 
   // Se pediu a semana, usa a função de serviço
@@ -36,6 +38,12 @@ function getAgendamentos(filtros) {
 function saveAgendamento(dados) {
   var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Agendamentos');
+  var dataNormalizada = normalizarDataISO(dados.data);
+  var horarioNormalizado = horarioParaString(dados.horario);
+
+  if (!dados.clienteID) return { erro: 'Cliente não informado.' };
+  if (!dataNormalizada) return { erro: 'Data inválida.' };
+  if (!horarioNormalizado) return { erro: 'Horário inválido.' };
 
   if (dados.id) {
     // ── Atualização de agendamento existente ──
@@ -49,8 +57,8 @@ function saveAgendamento(dados) {
           dados.id,
           dados.clienteID || '',
           dados.clienteNome || '',
-          dados.data || '',
-          dados.horario || '',
+          dataNormalizada,
+          horarioNormalizado,
           dados.duracao || '',
           dados.tipoAtendimento || '',
           dados.valor || 0,
@@ -61,6 +69,7 @@ function saveAgendamento(dados) {
           todasLinhas[i][12] // mantém data de criação
         ]]);
 
+        invalidarCache();
         return { sucesso: true, mensagem: 'Agendamento atualizado!', id: dados.id };
       }
     }
@@ -76,8 +85,8 @@ function saveAgendamento(dados) {
       novoID,
       dados.clienteID || '',
       dados.clienteNome || '',
-      dados.data || '',
-      dados.horario || '',
+      dataNormalizada,
+      horarioNormalizado,
       dados.duracao || 60,
       dados.tipoAtendimento || '',
       dados.valor || 0,
@@ -95,8 +104,8 @@ function saveAgendamento(dados) {
       var agendamentoParaCalendario = {
         id:              novoID,
         clienteNome:     dados.clienteNome || '',
-        data:            dados.data || '',
-        horario:         dados.horario || '',
+        data:            dataNormalizada,
+        horario:         horarioNormalizado,
         duracao:         dados.duracao || 60,
         tipoAtendimento: dados.tipoAtendimento || '',
         valor:           dados.valor || 0,
@@ -111,13 +120,7 @@ function saveAgendamento(dados) {
       }
     }
 
-    // ── Lançamento automático de receita ──
-    // Se o agendamento tiver um valor definido e status 'realizado',
-    // lança automaticamente como receita no módulo financeiro.
-    if (dados.valor && parseFloat(dados.valor) > 0 && dados.status === 'realizado') {
-      lancarReceitaAtendimento(novoID, dados);
-    }
-
+    invalidarCache();
     return { sucesso: true, mensagem: 'Agendamento criado!', id: novoID };
   }
 }
@@ -159,18 +162,7 @@ function updateStatusAgendamento(dados) {
         sheet.getRange(i + 1, 12).setValue(''); // limpa o ID do evento
       }
 
-      // ── Lança receita ao marcar como realizado ──
-      if (novoStatus === 'realizado' && statusAnterior !== 'realizado') {
-        var agendamentoDados = linhaParaAgendamento(linha);
-        if (agendamentoDados.valor && parseFloat(agendamentoDados.valor) > 0) {
-          // Verifica se já existe lançamento para esse agendamento
-          var jaLancado = verificarLancamentoExistente(linha[0]);
-          if (!jaLancado) {
-            lancarReceitaAtendimento(linha[0], agendamentoDados);
-          }
-        }
-      }
-
+      invalidarCache();
       return { sucesso: true, mensagem: 'Status atualizado para: ' + novoStatus };
     }
   }
@@ -194,11 +186,66 @@ function deleteAgendamento(id) {
         removerEventoCalendar(eventoID);
       }
       sheet.deleteRow(i + 1);
+      invalidarCache();
       return { sucesso: true, mensagem: 'Agendamento removido!' };
     }
   }
 
   return { erro: 'Agendamento não encontrado.' };
+}
+
+
+// ─── registrarPagamento: Registra o pagamento de um agendamento realizado ───
+// Chamado pelo frontend quando a fisioterapeuta clica em "💰 Registrar pagamento".
+// Cria a receita no Financeiro com a data e forma de pagamento informadas.
+function registrarPagamento(dados) {
+  if (!dados.agendamentoID) return { erro: 'ID do agendamento não informado.' };
+  if (!dados.valor)         return { erro: 'Informe o valor.' };
+  if (!dados.data)          return { erro: 'Informe a data do pagamento.' };
+  var valorNumerico = parseFloat(dados.valor);
+  if (isNaN(valorNumerico) || valorNumerico <= 0) return { erro: 'Valor inválido.' };
+  var dataPagamento = normalizarDataISO(dados.data);
+  if (!dataPagamento) return { erro: 'Data de pagamento inválida.' };
+
+  // Evita duplicação: verifica se já existe receita para este agendamento
+  if (verificarLancamentoExistente(dados.agendamentoID)) {
+    return { erro: 'Pagamento já registrado para este agendamento.' };
+  }
+
+  // Busca dados do agendamento para montar a descrição
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName('Agendamentos');
+  var linhas = sheet.getDataRange().getValues();
+  var agendamento = null;
+  for (var i = 1; i < linhas.length; i++) {
+    if (String(linhas[i][0]) === String(dados.agendamentoID)) {
+      agendamento = linhaParaAgendamento(linhas[i]);
+      break;
+    }
+  }
+  if (!agendamento) return { erro: 'Agendamento não encontrado.' };
+
+  // Cria a receita vinculada ao agendamento
+  var sheetFin = ss.getSheetByName('Financeiro');
+  var novoID = gerarID() + '_pag';
+  var dataCriacao = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd HH:mm:ss');
+  var descricao = 'Atendimento - ' + agendamento.clienteNome +
+    (agendamento.tipoAtendimento ? ' - ' + agendamento.tipoAtendimento : '');
+
+  sheetFin.appendRow([
+    novoID,
+    'receita',
+    valorNumerico,
+    dataPagamento,
+    descricao,
+    dados.formaPagamento || '',
+    'Atendimento',
+    dados.agendamentoID,
+    dataCriacao
+  ]);
+
+  invalidarCache();
+  return { sucesso: true, mensagem: 'Pagamento registrado com sucesso!' };
 }
 
 

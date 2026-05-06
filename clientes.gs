@@ -16,25 +16,23 @@ function getClientes(filtroNome) {
     return getClientesPorNome(filtroNome);
   }
 
-  // Sem filtro: retorna todos os clientes
+  // Sem filtro: verifica cache primeiro
+  var cached = getFromCache('clientes');
+  if (cached) return cached;
+
   var ss = getSpreadsheet();
   var sheet = ss.getSheetByName('Clientes');
-
-  // getDataRange() pega todos os dados (incluindo cabeçalho)
   var dados = sheet.getDataRange().getValues();
   var clientes = [];
 
-  // Começa do índice 1 para pular o cabeçalho (linha 0)
   for (var i = 1; i < dados.length; i++) {
     var linha = dados[i];
-    // Ignora linhas completamente vazias
     if (!linha[0]) continue;
     clientes.push(linhaParaCliente(linha));
   }
 
-  // Ordena por nome alfabeticamente
   clientes.sort(function(a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
-
+  saveToCache('clientes', clientes, 300); // 5 minutos
   return clientes;
 }
 
@@ -61,13 +59,13 @@ function saveCliente(dados) {
           dados.observacoes || '',
           todasLinhas[i][6] // mantém a data de cadastro original
         ]]);
+        invalidarCache();
         return { sucesso: true, mensagem: 'Cliente atualizado!', id: dados.id };
       }
     }
     return { erro: 'Cliente não encontrado para atualização.' };
 
   } else {
-    // ── Criação: adiciona uma nova linha no final da aba ──
     var novoID = gerarID();
     var dataCadastro = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd');
     sheet.appendRow([
@@ -79,6 +77,7 @@ function saveCliente(dados) {
       dados.observacoes || '',
       dataCadastro
     ]);
+    invalidarCache();
     return { sucesso: true, mensagem: 'Cliente cadastrado!', id: novoID };
   }
 }
@@ -95,7 +94,8 @@ function deleteCliente(id) {
   // Percorre as linhas de baixo para cima para não deslocar os índices ao deletar
   for (var i = dados.length - 1; i >= 1; i--) {
     if (dados[i][0] == id) {
-      sheet.deleteRow(i + 1); // +1 porque o array começa em 0 mas as linhas da planilha em 1
+      sheet.deleteRow(i + 1);
+      invalidarCache();
       return { sucesso: true, mensagem: 'Cliente removido!' };
     }
   }

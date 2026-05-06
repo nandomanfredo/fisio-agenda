@@ -58,7 +58,11 @@ function handleRequest(e) {
       dados = e.parameter;
     } else if (e.postData && e.postData.contents) {
       // Requisição POST com corpo JSON
-      dados = JSON.parse(e.postData.contents);
+      try {
+        dados = JSON.parse(e.postData.contents);
+      } catch (parseErr) {
+        return responder({ erro: 'JSON inválido no corpo da requisição.' });
+      }
       action = dados.action;
     }
 
@@ -84,9 +88,17 @@ function handleRequest(e) {
     if (action === 'deleteLancamento')    return responder(deleteLancamento(dados.id));
 
     // Módulo: Dashboard (usa funções da camada de serviços)
+    if (action === 'getBootstrap')        return responder(getBootstrap(dados.mes, dados.ano, dados.incluirDashboard));
+    if (action === 'getDashboard')        return responder(getDashboard(dados.mes, dados.ano));
     if (action === 'getResumoMes')        return responder(getResumoMes(dados.mes, dados.ano));
     if (action === 'getGraficoMeses')     return responder(getGraficoMeses(dados.meses));
     if (action === 'getTopCategorias')    return responder(getTopCategoriasDespesa(dados.mes, dados.ano));
+
+    // Pagamentos
+    if (action === 'registrarPagamento')  return responder(registrarPagamento(dados));
+
+    // Diagnóstico
+    if (action === 'testarAgendamentos')  return responder(testarAgendamentosHoje());
 
     // Ação não encontrada — retorna erro
     return responder({ erro: 'Ação não reconhecida: ' + action });
@@ -94,7 +106,7 @@ function handleRequest(e) {
   } catch (err) {
     // Se der qualquer erro, retorna a mensagem de erro em JSON
     Logger.log('Erro em handleRequest: ' + err.message);
-    return responder({ erro: err.message, stack: err.stack });
+    return responder({ erro: err.message });
   }
 }
 
@@ -110,7 +122,7 @@ function responder(objeto) {
 // Execute esta função manualmente uma vez antes de publicar o Web App.
 // Ela cria as abas "Clientes", "Agendamentos" e "Financeiro" com os cabeçalhos.
 function inicializarPlanilha() {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var ss = getSpreadsheet();
 
   // Definição das abas e seus cabeçalhos
   var abas = [

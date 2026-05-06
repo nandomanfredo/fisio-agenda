@@ -1,0 +1,42 @@
+{
+  "name": "fisio-agenda",
+  "version": "1.0.0",
+  "description": "Sistema de agendamento e gestão financeira para fisioterapeutas",
+  "author": "Fernando Oliveira",
+  "license": "UNLICENSED",
+  "private": true,
+
+  "stack": {
+    "backend": "Google Apps Script (serverless, hospedado pelo Google)",
+    "database": "Google Sheets (via SpreadsheetApp API)",
+    "calendar": "Google Calendar (via CalendarApp API)",
+    "frontend": "HTML + JavaScript puro (sem framework)",
+    "hosting": "GitHub Pages"
+  },
+
+  "dependencies": {
+    "chart.js": "4.4.0"
+  },
+
+  "dependencySource": {
+    "chart.js": {
+      "cdn": "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js",
+      "uso": "Gráficos de barras e pizza no Dashboard",
+      "licenca": "MIT"
+    }
+  },
+
+  "googleAppsScriptServices": {
+    "SpreadsheetApp": "Leitura e escrita de dados no Google Sheets",
+    "CalendarApp": "Criação e remoção de eventos no Google Calendar",
+    "CacheService": "Cache em memória para reduzir chamadas ao Sheets (TTL: 90s)",
+    "ContentService": "Serialização das respostas em JSON (doGet / doPost)",
+    "HtmlService": "Servir o index.html via Web App",
+    "UrlFetchApp": "Não utilizado diretamente (reservado para integrações futuras)",
+    "Utilities": "Formatação de datas com fuso horário America/Sao_Paulo"
+  },
+
+  "externalApis": {},
+
+  "noDevDependencies": "Projeto não usa bundler, transpilador ou ferramenta de build. Deploy é feito por git push (GitHub Pages) e publicação manual no Apps Script."
+}

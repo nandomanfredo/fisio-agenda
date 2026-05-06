@@ -26,6 +26,7 @@ function getLancamentos(filtros) {
   var ano  = filtros.ano  ? parseInt(filtros.ano)  : null;
   var dataInicio = filtros.dataInicio ? new Date(filtros.dataInicio + 'T00:00:00') : null;
   var dataFim    = filtros.dataFim    ? new Date(filtros.dataFim + 'T23:59:59')    : null;
+  var limite = filtros.limite ? parseInt(filtros.limite, 10) : 0;
 
   for (var i = 1; i < dados.length; i++) {
     var linha = dados[i];
@@ -54,6 +55,11 @@ function getLancamentos(filtros) {
   // Ordena do mais recente para o mais antigo
   resultado.sort(function(a, b) { return b.data.localeCompare(a.data); });
 
+  // Paginação simples para reduzir payload em cenários de bootstrap
+  if (limite > 0 && resultado.length > limite) {
+    resultado = resultado.slice(0, limite);
+  }
+
   return resultado;
 }
 
@@ -69,6 +75,19 @@ function saveLancamento(dados) {
   if (!dados.tipo)   return { erro: 'Informe o tipo (receita ou despesa).' };
   if (!dados.valor)  return { erro: 'Informe o valor do lançamento.' };
   if (!dados.data)   return { erro: 'Informe a data do lançamento.' };
+  if (dados.tipo !== 'receita' && dados.tipo !== 'despesa') {
+    return { erro: 'Tipo inválido. Use receita ou despesa.' };
+  }
+
+  var valorNumerico = parseFloat(dados.valor);
+  if (isNaN(valorNumerico) || valorNumerico <= 0) {
+    return { erro: 'Valor inválido. Informe um valor maior que zero.' };
+  }
+
+  var dataNormalizada = normalizarDataISO(dados.data);
+  if (!dataNormalizada) {
+    return { erro: 'Data inválida. Use o formato YYYY-MM-DD.' };
+  }
 
   var novoID = gerarID();
   var dataCriacao = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd HH:mm:ss');
@@ -76,8 +95,8 @@ function saveLancamento(dados) {
   sheet.appendRow([
     novoID,
     dados.tipo,
-    parseFloat(dados.valor),
-    dados.data,
+    valorNumerico,
+    dataNormalizada,
     dados.descricao || '',
     dados.formaPagamento || '',
     dados.categoria || 'Outros',
@@ -85,6 +104,7 @@ function saveLancamento(dados) {
     dataCriacao
   ]);
 
+  invalidarCache();
   return { sucesso: true, mensagem: 'Lançamento salvo!', id: novoID };
 }
 
@@ -98,6 +118,7 @@ function deleteLancamento(id) {
   for (var i = dados.length - 1; i >= 1; i--) {
     if (dados[i][0] == id) {
       sheet.deleteRow(i + 1);
+      invalidarCache();
       return { sucesso: true, mensagem: 'Lançamento removido!' };
     }
   }
