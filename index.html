@@ -762,7 +762,9 @@ var CATEGORIAS = {
 // Estado global — todos os dados ficam aqui após o carregamento inicial
 var estado = {
   clientes: [],
-  agendamentos: [],
+  agendamentos: [],        // agendamentos de HOJE
+  agendamentosSemana: [],  // agendamentos dos próximos 7 dias
+  semanaCarregada: false,  // true quando a semana já foi buscada no backend
   lancamentos: [],
   dashboardData: null,
   periodoFin: 'mes-atual',
@@ -874,15 +876,22 @@ async function carregarDadosIniciais(mes, ano, silencioso) {
   renderizarAgendamentos(estado.agendamentos);
 
   // ─── FASE 2: Resto em paralelo (background — não bloqueia a tela) ───
-  // Clientes, lançamentos e dashboard carregam enquanto o usuário já usa a agenda
+  // Semana, clientes, lançamentos e dashboard carregam enquanto o usuário já usa a agenda
   Promise.all([
+    chamarBackend('getAgendamentos', { semana: true }),
     chamarBackend('getClientes'),
     chamarBackend('getLancamentos', { mes: mes, ano: ano }),
     chamarBackend('getDashboard',   { mes: mes, ano: ano })
   ]).then(function(res) {
-    if (Array.isArray(res[0]))       estado.clientes    = res[0];
-    if (Array.isArray(res[1]))       estado.lancamentos = res[1];
-    if (res[2] && !res[2].erro)      estado.dashboardData = res[2];
+    if (Array.isArray(res[0])) {
+      estado.agendamentosSemana = res[0];
+      estado.semanaCarregada    = true;
+      // Se o usuário já estiver na aba semana, atualiza a tela
+      if (modoAgenda === 'semana') renderizarAgendamentos(estado.agendamentosSemana);
+    }
+    if (Array.isArray(res[1]))       estado.clientes      = res[1];
+    if (Array.isArray(res[2]))       estado.lancamentos   = res[2];
+    if (res[3] && !res[3].erro)      estado.dashboardData = res[3];
   }).catch(function(err) {
     console.warn('[fisio-agenda] Fase 2 parcialmente falhou:', err);
   });
@@ -939,7 +948,8 @@ function verAgendaHoje() {
   document.querySelectorAll('.agenda-tab').forEach(function(el, i) {
     el.classList.toggle('ativo', i === 0);
   });
-  carregarAgendamentos(true);
+  // Hoje já foi carregado na Fase 1 — renderiza imediatamente
+  renderizarAgendamentos(estado.agendamentos);
 }
 
 function verAgendaSemana() {
@@ -947,12 +957,35 @@ function verAgendaSemana() {
   document.querySelectorAll('.agenda-tab').forEach(function(el, i) {
     el.classList.toggle('ativo', i === 1);
   });
-  carregarAgendamentos(true);
+  if (estado.semanaCarregada) {
+    // Fase 2 já completou — renderiza instantâneo
+    renderizarAgendamentos(estado.agendamentosSemana);
+  } else {
+    // Fase 2 ainda em andamento — mostra loading e aguarda
+    document.getElementById('lista-agendamentos').innerHTML = '<div class="loading">Carregando semana...</div>';
+    var intervalo = setInterval(function() {
+      if (estado.semanaCarregada) {
+        clearInterval(intervalo);
+        if (modoAgenda === 'semana') renderizarAgendamentos(estado.agendamentosSemana);
+      }
+    }, 300);
+    // Timeout de segurança: se Fase 2 demorar >10s, busca direto
+    setTimeout(function() {
+      clearInterval(intervalo);
+      if (!estado.semanaCarregada && modoAgenda === 'semana') {
+        carregarAgendamentos(true);
+      }
+    }, 10000);
+  }
 }
 
 async function carregarAgendamentos(forcar) {
   if (estado.carregandoAgendamentos) return;
-  if (!forcar) { renderizarAgendamentos(estado.agendamentos); return; }
+  if (!forcar) {
+    var lista = modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos;
+    renderizarAgendamentos(lista);
+    return;
+  }
   estado.carregandoAgendamentos = true;
   try {
     var filtro = modoAgenda === 'semana' ? { semana: true } : {};
@@ -961,8 +994,14 @@ async function carregarAgendamentos(forcar) {
       mostrarToast(lista.erro || 'Falha ao carregar agenda.', true);
       return;
     }
-    estado.agendamentos = Array.isArray(lista) ? lista : [];
-    renderizarAgendamentos(estado.agendamentos);
+    if (modoAgenda === 'semana') {
+      estado.agendamentosSemana = Array.isArray(lista) ? lista : [];
+      estado.semanaCarregada    = true;
+      renderizarAgendamentos(estado.agendamentosSemana);
+    } else {
+      estado.agendamentos = Array.isArray(lista) ? lista : [];
+      renderizarAgendamentos(estado.agendamentos);
+    }
   } finally {
     estado.carregandoAgendamentos = false;
   }
@@ -1089,37 +1128,51 @@ async function salvarAgendamento() {
     _sincronizando:  true  // flag visual de "aguardando confirmação"
   };
 
-  if (dados.id) {
-    // Edição: substitui o item existente na lista local
-    estado.agendamentos = estado.agendamentos.map(function(a) {
-      return String(a.id) === String(dados.id) ? agendamentoOtimista : a;
-    });
-  } else {
-    // Novo: insere na lista e reordena por horário
-    estado.agendamentos.push(agendamentoOtimista);
-    estado.agendamentos.sort(function(a, b) { return (a.horario || '').localeCompare(b.horario || ''); });
+  // Atualiza a lista correta (hoje ou semana) com o item otimista
+  function atualizarListaOtimista(lista, isNovo) {
+    if (isNovo) {
+      lista.push(agendamentoOtimista);
+      lista.sort(function(a, b) { return (a.horario || '').localeCompare(b.horario || ''); });
+    } else {
+      return lista.map(function(a) {
+        return String(a.id) === String(dados.id) ? agendamentoOtimista : a;
+      });
+    }
+    return lista;
   }
-  renderizarAgendamentos(estado.agendamentos);
-  mostrarToast(dados.id ? 'Agendamento atualizado!' : 'Agendamento criado!');
 
-  // ── Backend em background: confirma a gravação e sincroniza o ID real ──
+  var isNovo = !dados.id;
+  estado.agendamentos      = atualizarListaOtimista(estado.agendamentos, isNovo);
+  estado.agendamentosSemana = atualizarListaOtimista(estado.agendamentosSemana, isNovo);
+
+  var listaAtiva = modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos;
+  renderizarAgendamentos(listaAtiva);
+  mostrarToast(isNovo ? 'Agendamento criado!' : 'Agendamento atualizado!');
+
+  // ── Backend em background ──
   chamarBackend('saveAgendamento', dados).then(function(resultado) {
     if (resultado && resultado.sucesso) {
-      // Substitui o ID temporário pelo ID real retornado pelo backend
-      estado.agendamentos = estado.agendamentos.map(function(a) {
-        if (String(a.id) === String(idTemporario)) {
-          a.id = resultado.id || idTemporario;
-          a._sincronizando = false;
-        }
-        return a;
-      });
-      renderizarAgendamentos(estado.agendamentos);
+      function confirmarID(lista) {
+        return lista.map(function(a) {
+          if (String(a.id) === String(idTemporario)) {
+            a.id = resultado.id || idTemporario;
+            a._sincronizando = false;
+          }
+          return a;
+        });
+      }
+      estado.agendamentos       = confirmarID(estado.agendamentos);
+      estado.agendamentosSemana = confirmarID(estado.agendamentosSemana);
+      var la = modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos;
+      renderizarAgendamentos(la);
     } else {
-      // Falha: remove o item otimista e avisa o usuário
-      estado.agendamentos = estado.agendamentos.filter(function(a) {
-        return String(a.id) !== String(idTemporario);
-      });
-      renderizarAgendamentos(estado.agendamentos);
+      function removerTemp(lista) {
+        return lista.filter(function(a) { return String(a.id) !== String(idTemporario); });
+      }
+      estado.agendamentos       = removerTemp(estado.agendamentos);
+      estado.agendamentosSemana = removerTemp(estado.agendamentosSemana);
+      var la = modoAgenda === 'semana' ? estado.agendamentosSemana : estado.agendamentos;
+      renderizarAgendamentos(la);
       mostrarToast((resultado && resultado.erro) || 'Erro ao salvar. Tente novamente.', true);
     }
   });
